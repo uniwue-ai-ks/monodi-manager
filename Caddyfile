@@ -1,0 +1,12 @@
+:80 {
+	handle {
+		file_server {
+			browse
+			root /srv
+		}
+		@to-index {
+			not path /static/* /resources/* /manifest.json /favicon.ico /assets/*
+		}
+		rewrite @to-index /index.html
+	}
+}
