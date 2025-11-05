@@ -1,29 +1,43 @@
-import { FormProvider, useForm } from "react-hook-form"
-import { MultiField, Submit } from "../components/forms";
+import { FormProvider, useForm } from "react-hook-form";
+import { CardTitle } from "~/components/card";
+import { FormCard, Input, MultiSubForm } from "../components/forms";
 
-export type Inputs = {
-  docTypeName: string[]
+export type NamesFormdata = {
+  docTypeNames: { name: string }[];
 }
 
-export const DocClass = () => {
-  const methods = useForm<Inputs>();
-  const onSubmit = (data: Inputs) => { console.log(data); };
+export type DoctypeNamesProps = {
+  onSubmit: (data: NamesFormdata) => void;
+  onBack?: () => void;
+  initialNames: { name: string }[];
+}
+
+export const DoctypeNames = ({ onSubmit, onBack, initialNames }: DoctypeNamesProps) => {
+  const methods = useForm<NamesFormdata>({ defaultValues: { docTypeNames: initialNames } });
 
   return <FormProvider {...methods}>
-    <form onSubmit={methods.handleSubmit(onSubmit)}>
-      <div className="space-y-6">
-        <h2 className="text-2xl font-bold">Definiere Dokumententypen</h2>
-        <p>
-          Dokumententypen sind die Grundlage für die Strukturierung von Inhalten in
-          Monodi. Sie definieren, welche Informationen zu einem Dokument hinterlegt werden sollen und wie sie angezeigt werden sollen.
-        </p>
-        <p>
-          Wähle zuerst aus, welche Dokumententypen es geben soll.
-        </p>
-        <MultiField label="Name des Dokumententyps" name="docTypeName" addText="weiteren Typ hinzufügen" />
-        <br />
-        <Submit>Weiter</Submit>
-      </div>
-    </form>
+    <FormCard methods={methods}
+      next="nächster Schritt"
+      onSubmit={onSubmit}
+      onBack={onBack}
+    >
+      <CardTitle>Definiere Dokumententypen</CardTitle>
+      <p>
+        Dokumententypen sind die Grundlage für die Strukturierung von Inhalten in
+        Monodi. Sie definieren, welche Informationen zu einem Dokument hinterlegt werden sollen und wie sie angezeigt werden sollen.
+      </p>
+      <p>
+        Falls alle Dokumente gemeinsam durchsuchbar sein sollen, reicht ein einzelner Dokumententyp. Mehrere Typen sind
+        dann nötig, wenn verschiedene Arten von Dokumenten nach verschiedenen Kriterien durchsuchbar sein sollen.
+        Ein Beispiel wäre ein Typ für Textdokumente und einer für Tabellen, wo letztere eine Suche nach Spalten anbieten könnten.
+      </p>
+      <p>
+        Wählen Sie zuerst aus, welche Dokumententypen es geben soll.
+      </p>
+      <MultiSubForm form={methods} name="docTypeNames" addText="weiteren Typ hinzufügen" empty={{ name: "" }}>{
+        (register, _, index) =>
+          <Input type="text" {...register(`docTypeNames.${index}.name`)} label={`Dokumententyp ${index + 1}`} />
+      }</MultiSubForm>
+    </FormCard>
   </FormProvider>
 }

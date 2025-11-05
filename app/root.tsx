@@ -1,14 +1,15 @@
 import {
-  isRouteErrorResponse,
-  Links,
-  Meta,
-  Outlet,
-  Scripts,
-  ScrollRestoration,
+    isRouteErrorResponse,
+    Links,
+    Meta,
+    Outlet,
+    Scripts,
+    ScrollRestoration,
 } from "react-router";
 
 import type { Route } from "./+types/root";
 import "./app.css";
+import { AppProvider } from "./state";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -32,7 +33,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body>
+      <body className="min-h-screen bg-gradient-to-b from-gray-000 to-gray-400">
         {children}
         <ScrollRestoration />
         <Scripts />
@@ -41,8 +42,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
+
 export default function App() {
-  return <Outlet />;
+  return <AppProvider><Outlet /></AppProvider>;
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {

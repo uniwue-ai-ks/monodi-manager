@@ -29,6 +29,9 @@ importers:
       react-router:
         specifier: ^7.7.1
         version: 7.8.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+      use-local-storage-state:
+        specifier: ^19.5.0
+        version: 19.5.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
     devDependencies:
       '@react-router/dev':
         specifier: ^7.7.1
@@ -1519,6 +1522,13 @@ packages:
     hasBin: true
     peerDependencies:
       browserslist: '>= 4.21.0'
+
+  use-local-storage-state@19.5.0:
+    resolution: {integrity: sha512-sUJAyFvsmqMpBhdwaRr7GTKkkoxb6PWeNVvpBDrLuwQF1PpbJRKIbOYeLLeqJI7B3wdfFlLLCBbmOdopiSTBOw==}
+    engines: {node: '>=14'}
+    peerDependencies:
+      react: '>=18'
+      react-dom: '>=18'
 
   utils-merge@1.0.1:
     resolution: {integrity: sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA==}
@@ -3066,6 +3076,11 @@ snapshots:
       browserslist: 4.25.2
       escalade: 3.2.0
       picocolors: 1.1.1
+
+  use-local-storage-state@19.5.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
+    dependencies:
+      react: 19.1.1
+      react-dom: 19.1.1(react@19.1.1)
 
   utils-merge@1.0.1: {}
 
