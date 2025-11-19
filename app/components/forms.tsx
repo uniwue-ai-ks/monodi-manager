@@ -1,5 +1,5 @@
-import type { PropsWithChildren, ReactElement } from "react";
-import { useFieldArray, useFormContext, type FieldArray, type FieldArrayPath, type FieldArrayWithId, type FieldValues, type Path, type RegisterOptions, type UseFormRegister, type UseFormReturn, type Validate } from "react-hook-form";
+import type { PropsWithChildren, ReactElement, ReactNode } from "react";
+import { useFieldArray, useFormContext, type FieldArray, type FieldArrayPath, type FieldArrayWithId, type FieldValues, type Path, type RegisterOptions, type UseFormRegister, type UseFormReturn, type UseFormWatch, type Validate } from "react-hook-form";
 import { Card } from "./card";
 import { useNavigate } from "react-router";
 
@@ -67,11 +67,18 @@ export const MultiField = <T extends FieldValues, N extends FieldArrayPath<T>, D
       ))}
     </ul>
     <div className="text-right my-2">
-    <button type="button" onClick={() => append(props.empty)} className={`bg-green-400 hover:bg-green-600 text-white ${buttonStyle}`}>{props.addText || "+"}</button>
+      <button type="button" onClick={() => append(props.empty)} className={`bg-green-400 hover:bg-green-600 text-white ${buttonStyle}`}>{props.addText || "+"}</button>
     </div>
   </>;
 
 };
+
+export type MultiSubFormChildProps<T extends FieldValues, N extends FieldArrayPath<T>> = {
+  register: UseFormRegister<T>;
+  field: FieldArrayWithId<T, N, "id">;
+  index: number;
+  watch: UseFormWatch<T>;
+}
 
 export const MultiSubForm = <T extends FieldValues, N extends FieldArrayPath<T>, D extends keyof T & string, V extends FieldArray<T, N>>(
   props: {
@@ -80,10 +87,10 @@ export const MultiSubForm = <T extends FieldValues, N extends FieldArrayPath<T>,
     addText?: string;
     rules?: Rules;
     empty: V;
-    children: (register: UseFormRegister<T>, field: FieldArrayWithId<T, N, "id">, index: number) => React.ReactNode;
+    children: (props: MultiSubFormChildProps<T, N>) => React.ReactNode;
   }
 ) => {
-  const { register, control } = props.form;
+  const { register, control, watch } = props.form;
   const { fields, append, remove } = useFieldArray({
     name: props.name,
     rules: props.rules,
@@ -93,14 +100,14 @@ export const MultiSubForm = <T extends FieldValues, N extends FieldArrayPath<T>,
   return <>
     {fields.map((field, index) => (
       <div key={field.id} className="grid grid-cols-[1fr_min-content] items-end space-x-2 my-2 rounded-md shadow-lg p-6 gap-3">
-        {props.children(register, field, index)}
+        {props.children({register: register, field: field, index: index, watch: watch})}
         <button type="button" onClick={() => remove(index)} className={`bg-red-500 hover:bg-red-700 text-white ${buttonStyle}`}>
           x
         </button>
       </div>
     ))}
     <div className="text-right my-2">
-    <button type="button" onClick={() => append(props.empty)} className={`bg-green-400 hover:bg-green-600 text-white ${buttonStyle}`}>{props.addText || "+"}</button>
+      <button type="button" onClick={() => append(props.empty)} className={`bg-green-400 hover:bg-green-600 text-white ${buttonStyle}`}>{props.addText || "+"}</button>
     </div>
   </>;
 
@@ -108,16 +115,40 @@ export const MultiSubForm = <T extends FieldValues, N extends FieldArrayPath<T>,
 
 export const buttonStyle = "font-bold py-1 px-2 rounded-lg"
 
+/** base style for grids without column definition */
+export const gridStyle = "w-full grid gap-3 items-center"
+export const LabelGrid = ({ children }: PropsWithChildren<{}>) =>
+  <div className={`${gridStyle} grid-cols-[auto_1fr]`}>
+    {children}
+  </div>
 
-type InputProps = Omit<React.DetailedHTMLProps<React.InputHTMLAttributes<HTMLInputElement>, HTMLInputElement>, 'className'> & { label?: string}
-export const Input = (props: InputProps) => {
-  return <div className={`w-full grid ${props.label ? "grid-cols-[auto_1fr]" : ""} gap-3 items-center`}>
-    {props.label ? <label className="whitespace-nowrap">{props.label}</label> : <></>}
+const optionalLabel = (label: ReactNode): ReactNode => label ? <label className="whitespace-nowrap">{label}</label> : undefined
+
+type InputProps = Omit<React.DetailedHTMLProps<React.InputHTMLAttributes<HTMLInputElement>, HTMLInputElement>, 'className'> & { label?: ReactNode }
+export const Input = (props: InputProps) => <>
+  {optionalLabel(props.label)}
   <input
-    className="w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+    className={`${props.label ? "" : "col-span-2"} w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
     {...props}
   />
-  </div>
+</>
+
+type SelectProps = Omit<React.DetailedHTMLProps<React.SelectHTMLAttributes<HTMLSelectElement>, HTMLSelectElement>, 'className'> & { label?: string }
+export const Select = (props: SelectProps) => {
+  return <>
+    {optionalLabel(props.label)}
+    <select
+      className={`${props.label ? "" : "col-span-2"} w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
+      {...props}>
+      {props.children}
+    </select>
+  </>
+}
+
+export const Info = () => {
+  //TODO show popover help
+  //maybe use flowbite
+  return <span className="text-blue-300 inline-block align-text-bottom">&#x1F6C8;</span>
 }
 
 const Submit = (props: PropsWithChildren<{}>): ReactElement => {

@@ -14,9 +14,9 @@ export function meta({ }: Route.MetaArgs) {
 export default function DoctypeFieldsPage({ params }: Route.ComponentProps) {
   const navigate = useNavigate()
   const [doctypeNames, _] = useLocalStorageState('doctypeNames', { defaultValue: [{ name: "Dokumente" }] })
-  const [doctypeFields, setDoctypeFields] = useLocalStorageState<DoctypeField[]>('doctypeFields', { defaultValue: [] })
-
   const index = parseInt(params.index)
+  const [doctypeFields, setDoctypeFields] = useLocalStorageState<DoctypeField[]>(`doctypeFields${index}`, { defaultValue: [] })
+
 
   useEffect(() => {
     if (doctypeNames.length === 0) {
@@ -26,6 +26,13 @@ export default function DoctypeFieldsPage({ params }: Route.ComponentProps) {
       navigate("/doctypeFields/0")
     }
   }, [navigate])
+  const isFinalDoctype = index >= doctypeNames.length - 1
+  const next = isFinalDoctype ? "/step3" : `/doctypeFields/${index + 1}`
 
-  return <DoctypeFields onSubmit={() => {}} doctypeName={doctypeNames[index].name} initialFields={[]}/>;
+  return <DoctypeFields
+    onSubmit={(fieldsData) => { setDoctypeFields(fieldsData.fields); navigate(next) }}
+    onBack={() => navigate("/doctypes")}
+    doctypeName={doctypeNames[index].name}
+    initialFields={doctypeFields}
+    isFinal={isFinalDoctype} />;
 }

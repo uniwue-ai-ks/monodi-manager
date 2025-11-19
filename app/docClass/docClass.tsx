@@ -1,6 +1,6 @@
 import { FormProvider, useForm } from "react-hook-form";
 import { CardTitle } from "~/components/card";
-import { FormCard, Input, MultiSubForm } from "../components/forms";
+import { FormCard, Input, LabelGrid, MultiSubForm } from "../components/forms";
 
 export type NamesFormdata = {
   docTypeNames: { name: string }[];
@@ -9,11 +9,11 @@ export type NamesFormdata = {
 export type DoctypeNamesProps = {
   onSubmit: (data: NamesFormdata) => void;
   onBack?: () => void;
-  initialNames: { name: string }[];
+  names: { name: string }[];
 }
 
-export const DoctypeNames = ({ onSubmit, onBack, initialNames }: DoctypeNamesProps) => {
-  const methods = useForm<NamesFormdata>({ defaultValues: { docTypeNames: initialNames } });
+export const DoctypeNames = ({ onSubmit, onBack, names }: DoctypeNamesProps) => {
+  const methods = useForm<NamesFormdata>({ defaultValues: { docTypeNames: names } });
 
   return <FormProvider {...methods}>
     <FormCard methods={methods}
@@ -35,8 +35,10 @@ export const DoctypeNames = ({ onSubmit, onBack, initialNames }: DoctypeNamesPro
         Wählen Sie zuerst aus, welche Dokumententypen es geben soll.
       </p>
       <MultiSubForm form={methods} name="docTypeNames" addText="weiteren Typ hinzufügen" empty={{ name: "" }}>{
-        (register, _, index) =>
-          <Input type="text" {...register(`docTypeNames.${index}.name`)} label={`Dokumententyp ${index + 1}`} />
+        ({register, index}) =>
+          <LabelGrid>
+            <Input type="text" {...register(`docTypeNames.${index}.name`)} label={`Dokumententyp ${index + 1}`} />
+          </LabelGrid>
       }</MultiSubForm>
     </FormCard>
   </FormProvider>

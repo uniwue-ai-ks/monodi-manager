@@ -18,5 +18,5 @@ export default function DoctypeNamesPage() {
     setDoctypeNames(data.docTypeNames);
     navigate("/doctypeFields/0")
   };
-  return <DoctypeNames onSubmit={onSubmit} onBack={() => {navigate("/")}} initialNames={doctypeNames} />;
+  return <DoctypeNames onSubmit={onSubmit} onBack={() => {navigate("/")}} names={doctypeNames} />;
 }
