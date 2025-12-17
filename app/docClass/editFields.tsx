@@ -1,7 +1,8 @@
 import { FormProvider, useForm, type FieldArray, type FieldArrayPath, type FieldArrayWithId, type FieldValues, type MultipleFieldErrors, type UseFormRegister } from "react-hook-form";
 import { CardSection, CardTitle } from "~/components/card";
-import { FormCard, Info, Input, LabelGrid, MultiSubForm, Select, type MultiSubFormChildProps } from "../components/forms";
+import { FormCard, Info, InfoPlaceholder, Input, LabelGrid, MultiSubForm, Select, Toggle, type MultiSubFormChildProps } from "../components/forms";
 import React, { useState } from "react";
+import { ToggleSwitch } from "flowbite-react";
 
 export type FieldsFormdata = {
   fields: DoctypeField[];
@@ -10,6 +11,7 @@ export type FieldsFormdata = {
 const typeOptions = {
   ":string": "Text",
   ":htmlContent": "Formatierter Text (HTML)",
+  ":number": "Zahl",
   ":pdf": "PDF-Datei",
   ":category": "Kategorisch",
 } as const;
@@ -19,6 +21,8 @@ export type DoctypeField = {
   name: string;
   type: FieldType;
   useSeparator?: boolean;
+  searchable?: boolean;
+  showInResults?: boolean;
 }
 
 export type FieldArrayFromValue<TFieldName extends FieldValues, RFieldName extends FieldArrayPath<TFieldName>> = {
@@ -57,24 +61,28 @@ export const DoctypeFields = ({ onSubmit, onBack, initialFields, doctypeName, is
 }
 
 const FieldForm = (props: MultiSubFormChildProps<FieldsFormdata, "fields">): React.ReactNode => {
-  const { register, index, watch } = props;
-  const [fieldType, setFieldType] = useState(":string")
+  const { control, register, index, watch } = props;
   const selectedType = watch(`fields.${index}.type`)
-  return <LabelGrid>
+  return <LabelGrid infoColumn={true}>
     <Input type="text" {...register(`fields.${index}.name`)} label="Name" />
+    <InfoPlaceholder />
+
     <Select {...register(`fields.${index}.type`)} label="Typ">
       {Object.entries(typeOptions).map(([key, value]) => <option value={key}>{value}</option>)}
     </Select>
     <TypeSpecificSettings selectedType={selectedType} {...props}/>
+
+    {selectedType != ":pdf" ?
+      <Toggle name={`fields.${index}.searchable`} control={control} label="Durchsuchbar" />
+      : <></>
+    }
   </LabelGrid>
 }
 
 const TypeSpecificSettings = ({ selectedType }: MultiSubFormChildProps<FieldsFormdata, "fields"> & { selectedType: FieldType }): React.ReactNode => {
   switch(selectedType) {
     case ":category":
-      return <>
-      <p className="col-span-2">Kategorische Felder haben eine <Info/> feste Menge an möglichen Werten, die beim Suchen in diesem Feld vorgeschlagen werden. </p>
-      </>
+      return <Info content="Kategorische Felder haben eine feste Menge an möglichen Werten, die beim Suchen in diesem Feld vorgeschlagen werden." />;
   }
-  return <></>
+  return <InfoPlaceholder />
 }

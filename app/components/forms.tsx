@@ -1,7 +1,8 @@
+import * as fb from "flowbite-react";
 import type { PropsWithChildren, ReactElement, ReactNode } from "react";
-import { useFieldArray, useFormContext, type FieldArray, type FieldArrayPath, type FieldArrayWithId, type FieldValues, type Path, type RegisterOptions, type UseFormRegister, type UseFormReturn, type UseFormWatch, type Validate } from "react-hook-form";
-import { Card } from "./card";
+import { Controller, useController, useFieldArray, useFormContext, type Control, type FieldArray, type FieldArrayPath, type FieldArrayWithId, type FieldValues, type Path, type RegisterOptions, type UseFormRegister, type UseFormReturn, type UseFormWatch, type Validate } from "react-hook-form";
 import { useNavigate } from "react-router";
+import { Card } from "./card";
 
 export type Rules = {
   validate?: Validate<
@@ -12,7 +13,9 @@ export type Rules = {
 export type FormCardProps<T extends FieldValues, C> = {
   methods: UseFormReturn<T, C, T>;
   onSubmit: (result: T) => void;
+  submitDisabled?: boolean,
   onBack?: () => void;
+  backDisabled?: boolean,
   children: React.ReactNode;
   next?: string;
   back?: string;
@@ -26,61 +29,21 @@ export const FormCard = <T extends FieldValues, C>(props: FormCardProps<T, C>) =
         {props.children}
       </div>
       <hr className="text-gray-300 col-span-3" />
-      {props.onBack ? <Back>{props.back || "zurück"}</Back> : undefined}
-      {props.next ? <Submit>{props.next}</Submit> : <Submit>weiter</Submit>}
+      {props.onBack ? <Back disabled={props.backDisabled}>{props.back || "zurück"}</Back> : undefined}
+      {props.next ? <Submit disabled={props.submitDisabled}>{props.next}</Submit> : <Submit>weiter</Submit>}
     </Card>
   </form>
 }
-
-export const MultiField = <T extends FieldValues, N extends FieldArrayPath<T>, D extends keyof T & string, V extends FieldArray<T, N>>(
-  props: {
-    label: string;
-    name: N;
-    displayField: D;
-    addText?: string;
-    rules?: Rules;
-    empty: V;
-  }
-) => {
-  const { register, control } = useFormContext<T>();
-  const { fields, append, remove } = useFieldArray({
-    name: props.name,
-    rules: props.rules,
-    control
-  });
-
-  return <>
-    <label htmlFor={props.name} className="block font-medium text-gray-700 dark:text-gray-300">
-      {props.label}
-    </label>
-    <ul className="list-none">
-      {fields.map((field, index) => (
-        <li key={field.id} className="flex items-center space-x-2 my-1">
-          <Input
-            type="text"
-            {...register(`${props.name}.${index}.${props.displayField}` as Path<T>)}
-          />
-          <button type="button" onClick={() => remove(index)} className={`bg-red-500 hover:bg-red-700 text-white ${buttonStyle}`}>
-            x
-          </button>
-        </li>
-      ))}
-    </ul>
-    <div className="text-right my-2">
-      <button type="button" onClick={() => append(props.empty)} className={`bg-green-400 hover:bg-green-600 text-white ${buttonStyle}`}>{props.addText || "+"}</button>
-    </div>
-  </>;
-
-};
 
 export type MultiSubFormChildProps<T extends FieldValues, N extends FieldArrayPath<T>> = {
   register: UseFormRegister<T>;
   field: FieldArrayWithId<T, N, "id">;
   index: number;
   watch: UseFormWatch<T>;
+  control: Control<T, any, T>;
 }
 
-export const MultiSubForm = <T extends FieldValues, N extends FieldArrayPath<T>, D extends keyof T & string, V extends FieldArray<T, N>>(
+export const MultiSubForm = <T extends FieldValues, N extends FieldArrayPath<T>, V extends FieldArray<T, N>>(
   props: {
     form: UseFormReturn<T, any, T>,
     name: N;
@@ -100,14 +63,14 @@ export const MultiSubForm = <T extends FieldValues, N extends FieldArrayPath<T>,
   return <>
     {fields.map((field, index) => (
       <div key={field.id} className="grid grid-cols-[1fr_min-content] items-end space-x-2 my-2 rounded-md shadow-lg p-6 gap-3">
-        {props.children({register: register, field: field, index: index, watch: watch})}
-        <button type="button" onClick={() => remove(index)} className={`bg-red-500 hover:bg-red-700 text-white ${buttonStyle}`}>
+        {props.children({ register: register, field: field, index: index, watch: watch, control: control })}
+        <fb.Button color="red" onClick={() => remove(index)}>
           x
-        </button>
+        </fb.Button>
       </div>
     ))}
-    <div className="text-right my-2">
-      <button type="button" onClick={() => append(props.empty)} className={`bg-green-400 hover:bg-green-600 text-white ${buttonStyle}`}>{props.addText || "+"}</button>
+    <div className="my-2">
+      <fb.Button className={`float-right`} onClick={() => append(props.empty)}>{props.addText || "+"}</fb.Button>
     </div>
   </>;
 
@@ -117,49 +80,109 @@ export const buttonStyle = "font-bold py-1 px-2 rounded-lg"
 
 /** base style for grids without column definition */
 export const gridStyle = "w-full grid gap-3 items-center"
-export const LabelGrid = ({ children }: PropsWithChildren<{}>) =>
-  <div className={`${gridStyle} grid-cols-[auto_1fr]`}>
+export const LabelGrid = ({ infoColumn, children }: PropsWithChildren<{ infoColumn?: boolean }>) => {
+  const gridCols = infoColumn ? "grid-cols-[auto_1fr_auto]" : "grid-cols-[auto_1fr]";
+  return <div className={`${gridStyle} ${gridCols}`}>
     {children}
   </div>
+}
 
 const optionalLabel = (label: ReactNode): ReactNode => label ? <label className="whitespace-nowrap">{label}</label> : undefined
 
-type InputProps = Omit<React.DetailedHTMLProps<React.InputHTMLAttributes<HTMLInputElement>, HTMLInputElement>, 'className'> & { label?: ReactNode }
-export const Input = (props: InputProps) => <>
-  {optionalLabel(props.label)}
-  <input
-    className={`${props.label ? "" : "col-span-2"} w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
-    {...props}
-  />
-</>
+type WithErrorTooltipProps<T extends FieldValues> = {
+  methods: UseFormReturn<T, any, T>,
+  options?: RegisterOptions<T>,
+  patternInfo?: string,
+  name: Path<T>,
+  children: (valid: Boolean) => React.ReactNode;
+}
+export const WithErrorTooltip = <T extends FieldValues>(
+  { methods, name, options, patternInfo, children }: WithErrorTooltipProps<T>
+) => {
+  // subscribe to the field state so UI updates immediately on change/touch/validation
+  const { fieldState } = useController({ name, control: methods.control as any });
+  const valid = !fieldState.error
+  const message = ((t: string | undefined) => {
+    switch (t) {
+      case 'required': return "Pflichtfeld"
+      case 'maxLength': return `Zu lang, maximal ${options?.maxLength}`
+      case 'minLength': return `Zu lang, maximal ${options?.minLength}`
+      case 'pattern': return `Ungültige Eingabe${patternInfo ? ": " + patternInfo : ""}`
+      case 'min': return `Wert muss mindestens ${options?.min} betragen`
+      case 'max': return `Wert darf höchstens ${options?.max} betragen`
+      default:
+        return undefined
+    }
+  })(fieldState.error?.type);
 
-type SelectProps = Omit<React.DetailedHTMLProps<React.SelectHTMLAttributes<HTMLSelectElement>, HTMLSelectElement>, 'className'> & { label?: string }
-export const Select = (props: SelectProps) => {
+  if (message) {
+    return <fb.Tooltip theme={{ target: "w-full" }} content={message}>{children(valid)}</fb.Tooltip>
+  } else {
+    return children(valid)
+  }
+}
+
+type TextInputProps<T extends FieldValues> = {
+  label?: ReactNode,
+  methods: UseFormReturn<T, any, T>,
+  options?: RegisterOptions<T>,
+  patternInfo?: string,
+  name: Path<T>,
+  inputProps?: fb.TextInputProps,
+}
+export const Input = <T extends FieldValues>(props: TextInputProps<T>) => {
+  const { methods, label, options, name, inputProps } = props;
+
   return <>
-    {optionalLabel(props.label)}
-    <select
-      className={`${props.label ? "" : "col-span-2"} w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
-      {...props}>
-      {props.children}
-    </select>
+    {optionalLabel(label)}
+    <WithErrorTooltip {...props}>{(valid) => {
+      return <fb.TextInput {...methods.register(name, options)}
+        className={label ? "" : "col-span-2"}
+        color={!valid ? "failure" : undefined}
+        {...inputProps}
+      />
+    }
+    }
+    </WithErrorTooltip>
   </>
 }
 
-export const Info = () => {
-  //TODO show popover help
-  //maybe use flowbite
-  return <span className="text-blue-300 inline-block align-text-bottom">&#x1F6C8;</span>
+type SelectProps = fb.SelectProps & { label?: string }
+export const Select = (props: SelectProps) => {
+  return <>
+    {optionalLabel(props.label)}
+    <fb.Select className={`${props.label ? "" : "col-span-2"}`}
+      {...props}>
+      {props.children}
+    </fb.Select>
+  </>
 }
 
-const Submit = (props: PropsWithChildren<{}>): ReactElement => {
-  return <button type="submit" className={`bg-green-400 hover:bg-green-600 text-white col-start-3 ${buttonStyle}`}>
+type ToggleProps<T extends FieldValues> = Pick<fb.ToggleSwitchProps, 'color' | 'sizing'> & { name: Path<T>, control: Control<T, any, T>, label?: ReactNode }
+export const Toggle = <T extends FieldValues>(props: ToggleProps<T>) => <>
+  {optionalLabel(props.label)}
+  <Controller name={props.name} control={props.control} render={({ field }) =>
+    <fb.ToggleSwitch checked={field.value} onChange={field.onChange} className={props.label ? "" : "col-span-2"} color={props.color} sizing={props.sizing} />
+  } />
+</>
+
+export type InfoProps = { content: string }
+export const Info = ({ content }: InfoProps) => {
+  return <fb.Tooltip content={content}>
+    <span className="text-blue-500 inline-block align-text-bottom">&#x1F6C8;</span>
+  </fb.Tooltip>
+}
+export const InfoPlaceholder = () => <span className="inline-block invisible">&#x1F6C8;</span>
+
+const Submit = (props: PropsWithChildren<{ disabled?: boolean }>): ReactElement => {
+  return <fb.Button type="submit" className={`col-start-3`} disabled={props.disabled}>
     {props.children}
-  </button>
+  </fb.Button>
 }
 
-const Back = (props: PropsWithChildren<{}>): ReactElement => {
+const Back = (props: PropsWithChildren<{ disabled?: boolean }>): ReactElement => {
   const navigate = useNavigate();
-  return <button onClick={() => navigate(-1)} className={`bg-gray-400 hover:bg-gray-600 text-white ${buttonStyle}`}>
+  return <fb.Button color="light" onClick={() => navigate(-1)} disabled={props.disabled}>
     {props.children}
-  </button>
+  </fb.Button>
 }

@@ -14,11 +14,14 @@ export type DoctypeNamesProps = {
 
 export const DoctypeNames = ({ onSubmit, onBack, names }: DoctypeNamesProps) => {
   const methods = useForm<NamesFormdata>({ defaultValues: { docTypeNames: names } });
+  const r = methods.register
+  const types = methods.watch(`docTypeNames`)
 
   return <FormProvider {...methods}>
     <FormCard methods={methods}
       next="nächster Schritt"
       onSubmit={onSubmit}
+      submitDisabled={types.length === 0}
       onBack={onBack}
     >
       <CardTitle>Definiere Dokumententypen</CardTitle>
@@ -37,7 +40,14 @@ export const DoctypeNames = ({ onSubmit, onBack, names }: DoctypeNamesProps) => 
       <MultiSubForm form={methods} name="docTypeNames" addText="weiteren Typ hinzufügen" empty={{ name: "" }}>{
         ({register, index}) =>
           <LabelGrid>
-            <Input type="text" {...register(`docTypeNames.${index}.name`)} label={`Dokumententyp ${index + 1}`} />
+            {/*
+            <Input type="text" {...register(`docTypeNames.${index}.name`, {required: true})}
+              label={`Dokumententyp ${index + 1}`}
+              color={methods.formState.errors.docTypeNames?.[index]?.name ? "failure" : undefined}
+            */}
+            <Input methods={methods} name={`docTypeNames.${index}.name`} options={{required: true}}
+              label={`Dokumententyp ${index + 1}`}
+            />
           </LabelGrid>
       }</MultiSubForm>
     </FormCard>
