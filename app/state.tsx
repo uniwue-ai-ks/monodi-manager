@@ -1,33 +1,19 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+export const typeOptions = {
+  ":string": "Text",
+  ":htmlContent": "Formatierter Text (HTML)",
+  ":number": "Zahl",
+  ":pdf": "PDF-Datei",
+  ":category": "Kategorisch",
+} as const;
 
-type DocumentField = {
+export type FieldType = keyof typeof typeOptions;
+
+export type DoctypeField = {
   name: string;
+  type: FieldType;
+  useSeparator?: boolean;
+  searchable?: boolean;
+  showInResults?: boolean;
 }
 
-type DocumentClass = {
-  name: String;
-  fields?: DocumentField[];
-}
-
-type AppState = {
-  documentClasses?: DocumentClass[]
-}
-
-export const AppStateContext = createContext<[AppState, React.Dispatch<React.SetStateAction<AppState>>] | undefined>(undefined);
-
-export const AppProvider = (props: { children: ReactNode }) => {
-  const value = useState<AppState>({});
-  return (
-    <AppStateContext.Provider value={value}>
-      {props.children}
-    </AppStateContext.Provider>
-  );
-}
-
-export const useAppState = (): [AppState, React.Dispatch<React.SetStateAction<AppState>>] => {
-  const context = useContext(AppStateContext);
-  if (!context) {
-    throw new Error("useAppState must be used within the AppProvider");
-  }
-  return context;
-}
+export type Doctypes = {[name: string]: DoctypeField[]};

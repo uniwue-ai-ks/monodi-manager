@@ -1,8 +1,8 @@
-import { useNavigate } from "react-router";
-import useLocalStorageState from "use-local-storage-state";
-import { DoctypeFields, type DoctypeField } from "~/docClass/editFields";
-import type { Route } from "./+types/doctypeFields";
 import { useEffect } from "react";
+import { useNavigate } from "react-router";
+import { DoctypeFields } from "~/docClass/editFields";
+import { getFlow, patchFlow } from "~/utils/flowStorage";
+import type { Route } from "./+types/doctypeFields";
 
 export function meta({ }: Route.MetaArgs) {
   return [
@@ -13,9 +13,9 @@ export function meta({ }: Route.MetaArgs) {
 
 export default function DoctypeFieldsPage({ params }: Route.ComponentProps) {
   const navigate = useNavigate()
-  const [doctypeNames, _] = useLocalStorageState('doctypeNames', { defaultValue: [{ name: "Dokumente" }] })
+  const doctypeNames = getFlow().doctypeNames ?? [{ name: "Dokumente" }]
   const index = parseInt(params.index)
-  const [doctypeFields, setDoctypeFields] = useLocalStorageState<DoctypeField[]>(`doctypeFields${index}`, { defaultValue: [] })
+  const doctypeFields = getFlow().doctypeFields?.[index] ?? []
 
 
   useEffect(() => {
@@ -30,7 +30,7 @@ export default function DoctypeFieldsPage({ params }: Route.ComponentProps) {
   const next = isFinalDoctype ? "/step3" : `/doctypeFields/${index + 1}`
 
   return <DoctypeFields
-    onSubmit={(fieldsData) => { setDoctypeFields(fieldsData.fields); navigate(next) }}
+    onSubmit={(fieldsData) => { const existing = getFlow(); patchFlow({ doctypeFields: { ...(existing.doctypeFields ?? {}), [index]: fieldsData.fields } }); navigate(next) }}
     onBack={() => navigate("/doctypes")}
     doctypeName={doctypeNames[index].name}
     initialFields={doctypeFields}

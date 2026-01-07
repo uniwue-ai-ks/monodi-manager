@@ -2,26 +2,10 @@ import React from "react";
 import { FormProvider, useForm, useFormContext, type FieldArray, type FieldArrayPath, type FieldValues } from "react-hook-form";
 import { CardSection, CardTitle } from "~/components/card";
 import { FormCard, Info, InfoPlaceholder, Input, LabelGrid, MultiSubForm, Select, Toggle, type MultiSubFormChildProps } from "../components/forms";
+import { typeOptions, type DoctypeField, type FieldType } from "~/state";
 
 export type FieldsFormdata = {
   fields: DoctypeField[];
-}
-
-const typeOptions = {
-  ":string": "Text",
-  ":htmlContent": "Formatierter Text (HTML)",
-  ":number": "Zahl",
-  ":pdf": "PDF-Datei",
-  ":category": "Kategorisch",
-} as const;
-
-type FieldType = keyof typeof typeOptions;
-export type DoctypeField = {
-  name: string;
-  type: FieldType;
-  useSeparator?: boolean;
-  searchable?: boolean;
-  showInResults?: boolean;
 }
 
 export type FieldArrayFromValue<TFieldName extends FieldValues, RFieldName extends FieldArrayPath<TFieldName>> = {

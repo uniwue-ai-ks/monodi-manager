@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router";
-import useLocalStorageState from "use-local-storage-state";
+import { getFlow, patchFlow } from "~/utils/flowStorage";
 import { DoctypeNames, type NamesFormdata } from "~/docClass/docClass";
 import type { Route } from "./+types/doctypes";
+import type { Doctypes } from "~/state";
 
 export function meta({ }: Route.MetaArgs) {
   return [
@@ -12,11 +13,16 @@ export function meta({ }: Route.MetaArgs) {
 
 export default function DoctypeNamesPage() {
   const navigate = useNavigate()
-  const [doctypeNames, setDoctypeNames] = useLocalStorageState('doctypeNames', { defaultValue: [{ name: "Dokumente" }] })
+  const names = getFlow().doctypeNames ?? [{ name: "Dokumente" }]
+  const doctypes = getFlow().doctypes ?? {"Dokumente":[]}
 
   const onSubmit = (data: NamesFormdata) => {
-    setDoctypeNames(data.docTypeNames);
+    const result: Doctypes = {}
+    for(const { name } of data.docTypeNames) {
+      result[name] = doctypes[name] ?? [];
+    }
+    patchFlow({ doctypeNames: data.docTypeNames });
     navigate("/doctypeFields/0")
   };
-  return <DoctypeNames onSubmit={onSubmit} onBack={() => {navigate("/")}} names={doctypeNames} />;
+  return <DoctypeNames onSubmit={onSubmit} onBack={() => {navigate("/")}} names={names} />;
 }
