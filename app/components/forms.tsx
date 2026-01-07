@@ -1,6 +1,6 @@
 import * as fb from "flowbite-react";
 import type { PropsWithChildren, ReactElement, ReactNode } from "react";
-import { Controller, useController, useFieldArray, useFormContext, type Control, type FieldArray, type FieldArrayPath, type FieldArrayWithId, type FieldValues, type Path, type RegisterOptions, type UseFormRegister, type UseFormReturn, type UseFormWatch, type Validate } from "react-hook-form";
+import { Controller, useController, useFieldArray, useFormContext, type FieldArray, type FieldArrayPath, type FieldValues, type Path, type RegisterOptions, type Validate } from "react-hook-form";
 import { useNavigate } from "react-router";
 import { Card } from "./card";
 
@@ -10,8 +10,7 @@ export type Rules = {
     FieldValues> | Record<string, Validate<FieldArray<FieldValues, FieldArrayPath<FieldValues>>[], FieldValues>>;
 } & Pick<RegisterOptions<FieldValues>, 'maxLength' | 'minLength' | 'required'>;
 
-export type FormCardProps<T extends FieldValues, C> = {
-  methods: UseFormReturn<T, C, T>;
+export type FormCardProps<T extends FieldValues> = {
   onSubmit: (result: T) => void;
   submitDisabled?: boolean,
   onBack?: () => void;
@@ -22,8 +21,9 @@ export type FormCardProps<T extends FieldValues, C> = {
   className?: string;
 }
 
-export const FormCard = <T extends FieldValues, C>(props: FormCardProps<T, C>) => {
-  return <form onSubmit={props.methods.handleSubmit(props.onSubmit)}>
+export const FormCard = <T extends FieldValues, C>(props: FormCardProps<T>) => {
+  const methods = useFormContext<T,C,T>()
+  return <form onSubmit={methods.handleSubmit(props.onSubmit)}>
     <Card className="max-w-200 pb-4 grid grid-cols-3 gap-4">
       <div className="col-span-3 space-y-4">
         {props.children}
@@ -35,25 +35,18 @@ export const FormCard = <T extends FieldValues, C>(props: FormCardProps<T, C>) =
   </form>
 }
 
-export type MultiSubFormChildProps<T extends FieldValues, N extends FieldArrayPath<T>> = {
-  register: UseFormRegister<T>;
-  field: FieldArrayWithId<T, N, "id">;
-  index: number;
-  watch: UseFormWatch<T>;
-  control: Control<T, any, T>;
-}
+export type MultiSubFormChildProps = { index: number; key: string; }
 
 export const MultiSubForm = <T extends FieldValues, N extends FieldArrayPath<T>, V extends FieldArray<T, N>>(
   props: {
-    form: UseFormReturn<T, any, T>,
     name: N;
     addText?: string;
     rules?: Rules;
     empty: V;
-    children: (props: MultiSubFormChildProps<T, N>) => React.ReactNode;
+    children: (props: MultiSubFormChildProps) => React.ReactNode;
   }
 ) => {
-  const { register, control, watch } = props.form;
+  const { control } = useFormContext<T, N, V>()
   const { fields, append, remove } = useFieldArray({
     name: props.name,
     rules: props.rules,
@@ -63,7 +56,7 @@ export const MultiSubForm = <T extends FieldValues, N extends FieldArrayPath<T>,
   return <>
     {fields.map((field, index) => (
       <div key={field.id} className="grid grid-cols-[1fr_min-content] items-end space-x-2 my-2 rounded-md shadow-lg p-6 gap-3">
-        {props.children({ register: register, field: field, index: index, watch: watch, control: control })}
+        {props.children({ key: `${field.id}--${index}`, index: index })}
         <fb.Button color="red" onClick={() => remove(index)}>
           x
         </fb.Button>
@@ -90,15 +83,15 @@ export const LabelGrid = ({ infoColumn, children }: PropsWithChildren<{ infoColu
 const optionalLabel = (label: ReactNode): ReactNode => label ? <label className="whitespace-nowrap">{label}</label> : undefined
 
 type WithErrorTooltipProps<T extends FieldValues> = {
-  methods: UseFormReturn<T, any, T>,
   options?: RegisterOptions<T>,
   patternInfo?: string,
   name: Path<T>,
   children: (valid: Boolean) => React.ReactNode;
 }
 export const WithErrorTooltip = <T extends FieldValues>(
-  { methods, name, options, patternInfo, children }: WithErrorTooltipProps<T>
+  { name, options, patternInfo, children }: WithErrorTooltipProps<T>
 ) => {
+  const methods = useFormContext()
   // subscribe to the field state so UI updates immediately on change/touch/validation
   const { fieldState } = useController({ name, control: methods.control as any });
   const valid = !fieldState.error
@@ -124,14 +117,14 @@ export const WithErrorTooltip = <T extends FieldValues>(
 
 type TextInputProps<T extends FieldValues> = {
   label?: ReactNode,
-  methods: UseFormReturn<T, any, T>,
   options?: RegisterOptions<T>,
   patternInfo?: string,
   name: Path<T>,
   inputProps?: fb.TextInputProps,
 }
 export const Input = <T extends FieldValues>(props: TextInputProps<T>) => {
-  const { methods, label, options, name, inputProps } = props;
+  const { label, options, name, inputProps } = props;
+  const methods = useFormContext<T>()
 
   return <>
     {optionalLabel(label)}
@@ -158,13 +151,16 @@ export const Select = (props: SelectProps) => {
   </>
 }
 
-type ToggleProps<T extends FieldValues> = Pick<fb.ToggleSwitchProps, 'color' | 'sizing'> & { name: Path<T>, control: Control<T, any, T>, label?: ReactNode }
-export const Toggle = <T extends FieldValues>(props: ToggleProps<T>) => <>
-  {optionalLabel(props.label)}
-  <Controller name={props.name} control={props.control} render={({ field }) =>
-    <fb.ToggleSwitch checked={field.value} onChange={field.onChange} className={props.label ? "" : "col-span-2"} color={props.color} sizing={props.sizing} />
-  } />
-</>
+type ToggleProps<T extends FieldValues> = Pick<fb.ToggleSwitchProps, 'color' | 'sizing'> & { name: Path<T>, label?: ReactNode }
+export const Toggle = <T extends FieldValues>(props: ToggleProps<T>) => {
+  const { control } = useFormContext<T, any, T>()
+  return <>
+    {optionalLabel(props.label)}
+    <Controller name={props.name} control={control} render={({ field }) =>
+      <fb.ToggleSwitch checked={!!field.value} onChange={field.onChange} className={props.label ? "" : "col-span-2"} color={props.color} sizing={props.sizing} />
+    } />
+  </>
+}
 
 export type InfoProps = { content: string }
 export const Info = ({ content }: InfoProps) => {

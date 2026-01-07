@@ -1,8 +1,7 @@
-import { DoctypeNames } from "~/docClass/docClass";
-import type { Route } from "./+types/home";
-import { Card, CardTitle } from "~/components/card";
 import { Link } from "react-router";
+import { Card, CardTitle } from "~/components/card";
 import { buttonStyle } from "~/components/forms";
+import type { Route } from "./+types/home";
 
 export function meta({ }: Route.MetaArgs) {
   return [
