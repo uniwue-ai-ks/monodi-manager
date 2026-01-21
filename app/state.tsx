@@ -8,12 +8,15 @@ export const typeOptions = {
 
 export type FieldType = keyof typeof typeOptions;
 
+export type DocumentPosition = ":main" | ":header" | ":right" | ":download";
+
 export type DoctypeField = {
   name: string;
   type: FieldType;
   useSeparator?: boolean;
   searchable?: boolean;
   showInResults?: boolean;
+  documentPositions?: DocumentPosition[];
 }
 
-export type Doctypes = {[name: string]: DoctypeField[]};
+export type Doctypes = {[name: string]: DoctypeField[] };

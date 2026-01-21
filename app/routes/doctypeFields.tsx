@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
-import { DoctypeFields } from "~/docClass/editFields";
-import { getFlow, patchFlow } from "~/utils/flowStorage";
+import { DoctypeFields, type FieldsFormdata } from "~/docClass/editFields";
+import { useAppState } from "~/utils/flowStorage";
 import type { Route } from "./+types/doctypeFields";
 
 export function meta({ }: Route.MetaArgs) {
@@ -13,26 +13,34 @@ export function meta({ }: Route.MetaArgs) {
 
 export default function DoctypeFieldsPage({ params }: Route.ComponentProps) {
   const navigate = useNavigate()
-  const doctypeNames = getFlow().doctypeNames ?? [{ name: "Dokumente" }]
-  const index = parseInt(params.index)
-  const doctypeFields = getFlow().doctypeFields?.[index] ?? []
+  const storage = useAppState()
+  const doctypes = storage.contents.doctypes ?? {}
+  const names = Object.keys(doctypes)
+  const nextName = names[(names.indexOf(params.name) ?? 0) + 1]
+
+  const doctypeFields = doctypes[params.name]
 
 
   useEffect(() => {
-    if (doctypeNames.length === 0) {
+    if (doctypes[params.name] === undefined || Object.keys(doctypes).length === 0) {
+      console.warn(`No doctype with name ${params.name}`)
       navigate("/doctypes")
-    } else if (isNaN(index) || index >= doctypeNames.length) {
-      console.log("index is", index)
-      navigate("/doctypeFields/0")
     }
   }, [navigate])
-  const isFinalDoctype = index >= doctypeNames.length - 1
-  const next = isFinalDoctype ? "/step3" : `/doctypeFields/${index + 1}`
+
+  const next = nextName === undefined ? "/step3" : `/doctypeFields/${nextName}`
+  const onSubmit = (fieldsData: FieldsFormdata) => {
+    const existing = storage.contents
+    const newDoctypes = { ...existing.doctypes }
+    newDoctypes[params.name] = fieldsData.fields;
+    storage.patchContents({ doctypes: newDoctypes })
+    navigate(next)
+  }
 
   return <DoctypeFields
-    onSubmit={(fieldsData) => { const existing = getFlow(); patchFlow({ doctypeFields: { ...(existing.doctypeFields ?? {}), [index]: fieldsData.fields } }); navigate(next) }}
+    onSubmit={onSubmit}
     onBack={() => navigate("/doctypes")}
-    doctypeName={doctypeNames[index].name}
+    doctypeName={params.name}
     initialFields={doctypeFields}
-    isFinal={isFinalDoctype} />;
+    isFinal={nextName === undefined} />;
 }

@@ -1,8 +1,10 @@
-import React from "react";
-import { FormProvider, useForm, useFormContext, type FieldArray, type FieldArrayPath, type FieldValues } from "react-hook-form";
+import { type ReactNode } from "react";
+import { Controller, FormProvider, useForm, useFormContext, type FieldArray, type FieldArrayPath, type FieldValues } from "react-hook-form";
 import { CardSection, CardTitle } from "~/components/card";
-import { FormCard, Info, InfoPlaceholder, Input, LabelGrid, MultiSubForm, Select, Toggle, type MultiSubFormChildProps } from "../components/forms";
+import { MultiSubForm, type MultiSubFormChildProps } from "~/components/MultiSubForm";
 import { typeOptions, type DoctypeField, type FieldType } from "~/state";
+import { FormCard, Info, InfoPlaceholder, Input, LabelGrid, Select, Toggle } from "../components/forms";
+import { DisplayLocationSelector } from "./DisplayLocationSelector";
 
 export type FieldsFormdata = {
   fields: DoctypeField[];
@@ -40,8 +42,8 @@ export const DoctypeFields = ({ onSubmit, onBack, initialFields, doctypeName, is
   </FormProvider>
 }
 
-const FieldForm = ({ index }: MultiSubFormChildProps): React.ReactNode => {
-  const { register, watch } = useFormContext();
+const FieldForm = ({ index }: MultiSubFormChildProps): ReactNode => {
+  const { register, watch, control } = useFormContext<FieldsFormdata>();
   const selectedType = watch(`fields.${index}.type`)
   return <LabelGrid infoColumn={true}>
     <Input {...register(`fields.${index}.name`)} label="Name" />
@@ -50,16 +52,21 @@ const FieldForm = ({ index }: MultiSubFormChildProps): React.ReactNode => {
     <Select {...register(`fields.${index}.type`)} label="Typ">
       {Object.entries(typeOptions).map(([key, value]) => <option key={key} value={key}>{value}</option>)}
     </Select>
-    <TypeSpecificSettings selectedType={selectedType} index={index}/>
+    <TypeSpecificSettings selectedType={selectedType} index={index} />
 
     {selectedType != ":pdf" ?
-      <Toggle name={`fields.${index}.searchable`} label="Durchsuchbar" />
-      : <></>
+      [<Toggle name={`fields.${index}.searchable`} label="Durchsuchbar" />, <span />]
+      : undefined
     }
+
+    <label htmlFor={`fields.${index}.documentPositions`}>Dokumentenansicht</label>
+    <Controller name={`fields.${index}.documentPositions`} control={control} render={({ field }) => {
+      return <DisplayLocationSelector {...field} downloadable={selectedType == ":pdf"} />
+    }} />
   </LabelGrid>
 }
 
-const TypeSpecificSettings = ({ selectedType }: { index: number, selectedType: FieldType }): React.ReactNode => {
+const TypeSpecificSettings = ({ selectedType }: { index: number, selectedType: FieldType }): ReactNode => {
   switch (selectedType) {
     case ":category":
       return <Info content="Kategorische Felder haben eine feste Menge an möglichen Werten, die beim Suchen in diesem Feld vorgeschlagen werden." />;

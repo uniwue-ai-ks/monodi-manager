@@ -1,14 +1,11 @@
 import * as fb from "flowbite-react";
-import type { PropsWithChildren, ReactElement, ReactNode } from "react";
-import { Controller, useController, useFieldArray, useFormContext, type FieldArray, type FieldArrayPath, type FieldValues, type Path, type RegisterOptions, type Validate } from "react-hook-form";
+import { useState, type PropsWithChildren, type ReactElement, type ReactNode } from "react";
+import { Controller, useController, useFormContext, type FieldArray, type FieldArrayPath, type FieldValues, type Path, type RegisterOptions, type Validate } from "react-hook-form";
 import { useNavigate } from "react-router";
 import { Card } from "./card";
+import { HiCheck } from "react-icons/hi";
+import type { DynamicStringEnumKeysOf } from "flowbite-react/types";
 
-export type Rules = {
-  validate?: Validate<
-    FieldArray<FieldValues, FieldArrayPath<FieldValues>>[],
-    FieldValues> | Record<string, Validate<FieldArray<FieldValues, FieldArrayPath<FieldValues>>[], FieldValues>>;
-} & Pick<RegisterOptions<FieldValues>, 'maxLength' | 'minLength' | 'required'>;
 
 export type FormCardProps<T extends FieldValues> = {
   onSubmit: (result: T) => void;
@@ -22,7 +19,7 @@ export type FormCardProps<T extends FieldValues> = {
 }
 
 export const FormCard = <T extends FieldValues, C>(props: FormCardProps<T>) => {
-  const methods = useFormContext<T,C,T>()
+  const methods = useFormContext<T, C, T>()
   return <form onSubmit={methods.handleSubmit(props.onSubmit)}>
     <Card className="max-w-200 pb-4 grid grid-cols-3 gap-4">
       <div className="col-span-3 space-y-4">
@@ -35,40 +32,6 @@ export const FormCard = <T extends FieldValues, C>(props: FormCardProps<T>) => {
   </form>
 }
 
-export type MultiSubFormChildProps = { index: number; key: string; }
-
-export const MultiSubForm = <T extends FieldValues, N extends FieldArrayPath<T>, V extends FieldArray<T, N>>(
-  props: {
-    name: N;
-    addText?: string;
-    rules?: Rules;
-    empty: V;
-    children: (props: MultiSubFormChildProps) => React.ReactNode;
-  }
-) => {
-  const { control } = useFormContext<T, N, V>()
-  const { fields, append, remove } = useFieldArray({
-    name: props.name,
-    rules: props.rules,
-    control
-  });
-
-  return <>
-    {fields.map((field, index) => (
-      <div key={field.id} className="grid grid-cols-[1fr_min-content] items-end space-x-2 my-2 rounded-md shadow-lg p-6 gap-3">
-        {props.children({ key: `${field.id}--${index}`, index: index })}
-        <fb.Button color="red" onClick={() => remove(index)}>
-          x
-        </fb.Button>
-      </div>
-    ))}
-    <div className="my-2">
-      <fb.Button className={`float-right`} onClick={() => append(props.empty)}>{props.addText || "+"}</fb.Button>
-    </div>
-  </>;
-
-};
-
 export const buttonStyle = "font-bold py-1 px-2 rounded-lg"
 
 /** base style for grids without column definition */
@@ -80,7 +43,7 @@ export const LabelGrid = ({ infoColumn, children }: PropsWithChildren<{ infoColu
   </div>
 }
 
-const optionalLabel = (label: ReactNode): ReactNode => label ? <label className="whitespace-nowrap">{label}</label> : undefined
+const optionalLabel = (label: ReactNode, name?: string): ReactNode => label ? <label htmlFor={name} className="whitespace-nowrap">{label}</label> : undefined
 
 type WithErrorTooltipProps<T extends FieldValues> = {
   options?: RegisterOptions<T>,
@@ -127,7 +90,7 @@ export const Input = <T extends FieldValues>(props: TextInputProps<T>) => {
   const methods = useFormContext<T>()
 
   return <>
-    {optionalLabel(label)}
+    {optionalLabel(label, name)}
     <WithErrorTooltip {...props}>{(valid) => {
       return <fb.TextInput {...methods.register(name, options)}
         className={label ? "" : "col-span-2"}
@@ -143,7 +106,7 @@ export const Input = <T extends FieldValues>(props: TextInputProps<T>) => {
 type SelectProps = fb.SelectProps & { label?: string }
 export const Select = (props: SelectProps) => {
   return <>
-    {optionalLabel(props.label)}
+    {optionalLabel(props.label, props.name)}
     <fb.Select className={`${props.label ? "" : "col-span-2"}`}
       {...props}>
       {props.children}
@@ -151,15 +114,32 @@ export const Select = (props: SelectProps) => {
   </>
 }
 
-type ToggleProps<T extends FieldValues> = Pick<fb.ToggleSwitchProps, 'color' | 'sizing'> & { name: Path<T>, label?: ReactNode }
+type ToggleProps<T extends FieldValues> = Pick<fb.ToggleSwitchProps, 'color' | 'sizing'> & { name: Path<T>, label?: ReactNode, className?: string}
 export const Toggle = <T extends FieldValues>(props: ToggleProps<T>) => {
   const { control } = useFormContext<T, any, T>()
   return <>
-    {optionalLabel(props.label)}
+    {optionalLabel(props.label, props.name)}
     <Controller name={props.name} control={control} render={({ field }) =>
-      <fb.ToggleSwitch checked={!!field.value} onChange={field.onChange} className={props.label ? "" : "col-span-2"} color={props.color} sizing={props.sizing} />
+      <fb.ToggleSwitch checked={!!field.value} onChange={field.onChange} className={(props.label ? "" : "col-span-2") + " " + (props.className ?? "")} color={props.color} sizing={props.sizing} />
     } />
   </>
+}
+
+type UseToggleProps = {
+  key?: string;
+  label?: string;
+  color?: string;
+  sizing?: DynamicStringEnumKeysOf<fb.TextInputSizes>
+}
+export const useToggle = () => {
+  const [enabled, setEnabled] = useState(false);
+  return {
+    enabled: enabled,
+    Switch: ({ key, label, color, sizing }: UseToggleProps) => <span key={key}>
+      {optionalLabel(label, key)}
+      <fb.ToggleSwitch name={key} checked={enabled} onChange={setEnabled} color={color} sizing={sizing} />
+    </span>
+  }
 }
 
 export type InfoProps = { content: string }

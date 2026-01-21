@@ -1,6 +1,7 @@
 import { FormProvider, useForm } from "react-hook-form";
 import { CardTitle } from "~/components/card";
-import { FormCard, Input, LabelGrid, MultiSubForm } from "../components/forms";
+import { FormCard, Input, LabelGrid } from "../components/forms";
+import { MultiSubForm } from "~/components/MultiSubForm";
 
 export type NamesFormdata = {
   docTypeNames: { name: string }[];

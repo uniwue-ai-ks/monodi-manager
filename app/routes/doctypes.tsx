@@ -1,8 +1,8 @@
 import { useNavigate } from "react-router";
-import { getFlow, patchFlow } from "~/utils/flowStorage";
 import { DoctypeNames, type NamesFormdata } from "~/docClass/docClass";
-import type { Route } from "./+types/doctypes";
 import type { Doctypes } from "~/state";
+import { useAppState } from "~/utils/flowStorage";
+import type { Route } from "./+types/doctypes";
 
 export function meta({ }: Route.MetaArgs) {
   return [
@@ -13,16 +13,16 @@ export function meta({ }: Route.MetaArgs) {
 
 export default function DoctypeNamesPage() {
   const navigate = useNavigate()
-  const names = getFlow().doctypeNames ?? [{ name: "Dokumente" }]
-  const doctypes = getFlow().doctypes ?? {"Dokumente":[]}
+  const storage = useAppState()
+  const doctypes = storage.contents.doctypes ?? {}
+  const names = Object.keys(doctypes).map((n) => ({ name: n }))
 
   const onSubmit = (data: NamesFormdata) => {
-    const result: Doctypes = {}
-    for(const { name } of data.docTypeNames) {
-      result[name] = doctypes[name] ?? [];
-    }
-    patchFlow({ doctypeNames: data.docTypeNames });
-    navigate("/doctypeFields/0")
+    const newDoctypes: Doctypes = Object.fromEntries(
+      data.docTypeNames.map(({name}) => [name, doctypes[name] ?? []])
+    )
+    storage.patchContents({ doctypes: newDoctypes });
+    navigate(`/doctypeFields/${data.docTypeNames[0].name}`)
   };
-  return <DoctypeNames onSubmit={onSubmit} onBack={() => {navigate("/")}} names={names} />;
+  return <DoctypeNames onSubmit={onSubmit} onBack={() => { navigate("/") }} names={names} />;
 }

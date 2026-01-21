@@ -25,14 +25,14 @@ export const links: Route.LinksFunction = () => [
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className="bg-fixed bg-gradient-to-b from-gray-200 to-gray-400 min-h-screen">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
       </head>
-      <body className="min-h-screen bg-gradient-to-b from-gray-000 to-gray-400">
+      <body className="min-h-screen bg-transparent">
         {children}
         <ScrollRestoration />
         <Scripts />
@@ -56,7 +56,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
     details =
       error.status === 404
         ? "The requested page could not be found."
-        : error.statusText || details;
+        : error.statusText ?? details;
   } else if (import.meta.env.DEV && error && error instanceof Error) {
     details = error.message;
     stack = error.stack;
