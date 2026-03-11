@@ -3,14 +3,14 @@ import { Card, CardTitle } from "~/components/card";
 import { buttonStyle } from "~/components/forms";
 import type { Route } from "./+types/home";
 
-export function meta({ }: Route.MetaArgs) {
+export const meta = ({ }: Route.MetaArgs) => {
   return [
     { title: "Monodi RDF Generator" },
     { name: "description", content: "Konfigurieren Sie Ihren Monodi-Viewer." },
   ];
 }
 
-export default function Home() {
+export const Home = () => {
   return <Card>
     <CardTitle>Monodi-Konfigurator</CardTitle>
     <p>
@@ -24,3 +24,4 @@ export default function Home() {
     </Link>
   </Card>;
 }
+export default Home;

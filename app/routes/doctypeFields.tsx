@@ -4,14 +4,14 @@ import { DoctypeFields, type FieldsFormdata } from "~/docClass/editFields";
 import { useAppState } from "~/utils/flowStorage";
 import type { Route } from "./+types/doctypeFields";
 
-export function meta({ }: Route.MetaArgs) {
+export const meta = ({ }: Route.MetaArgs) => {
   return [
     { title: "Bearbeite Dokumententyp" },
     { name: "description", content: "Schritt 2: Dokumenteigenschaften festlegen" },
   ];
 }
 
-export default function DoctypeFieldsPage({ params }: Route.ComponentProps) {
+export const DoctypeFieldsPage = ({ params }: Route.ComponentProps) => {
   const navigate = useNavigate()
   const storage = useAppState()
   const doctypes = storage.contents.doctypes ?? {}
@@ -28,7 +28,7 @@ export default function DoctypeFieldsPage({ params }: Route.ComponentProps) {
     }
   }, [navigate])
 
-  const next = nextName === undefined ? "/step3" : `/doctypeFields/${nextName}`
+  const next = nextName === undefined ? "/upload" : `/doctypeFields/${nextName}`
   const onSubmit = (fieldsData: FieldsFormdata) => {
     const existing = storage.contents
     const newDoctypes = { ...existing.doctypes }
@@ -44,3 +44,4 @@ export default function DoctypeFieldsPage({ params }: Route.ComponentProps) {
     initialFields={doctypeFields}
     isFinal={nextName === undefined} />;
 }
+export default DoctypeFieldsPage;

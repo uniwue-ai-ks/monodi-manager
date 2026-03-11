@@ -4,14 +4,14 @@ import type { Doctypes } from "~/state";
 import { useAppState } from "~/utils/flowStorage";
 import type { Route } from "./+types/doctypes";
 
-export function meta({ }: Route.MetaArgs) {
+export const meta = ({ }: Route.MetaArgs) => {
   return [
     { title: "Dokumententypen konfigurieren" },
     { name: "description", content: "Schritt 1: welche Dokumententypen sollen erfasst werden?" },
   ];
 }
 
-export default function DoctypeNamesPage() {
+export const DoctypeNamesPage = () => {
   const navigate = useNavigate()
   const storage = useAppState()
   const doctypes = storage.contents.doctypes ?? {}
@@ -26,3 +26,4 @@ export default function DoctypeNamesPage() {
   };
   return <DoctypeNames onSubmit={onSubmit} onBack={() => { navigate("/") }} names={names} />;
 }
+export default DoctypeNamesPage;
