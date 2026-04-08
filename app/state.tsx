@@ -2,6 +2,7 @@ export const typeOptions = {
   ":string": "Text",
   ":htmlContent": "Formatierter Text (HTML)",
   ":number": "Zahl",
+  ":boolean": "Ja/Nein",
   ":pdf": "PDF-Datei",
   ":category": "Kategorisch",
 } as const;

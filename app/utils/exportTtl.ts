@@ -123,6 +123,8 @@ export function generateTtl(state: AppState): string {
         if (value !== undefined && value !== "") {
           if (field.type === ":number") {
             triples.push(`  data:${propSlug} ${value}^^xsd:integer`);
+          } else if (field.type === ":boolean") {
+            triples.push(`  data:${propSlug} "${value === "true" ? "true" : "false"}"`);
           } else {
             triples.push(`  data:${propSlug} "${escapeTtl(value)}"`);
           }

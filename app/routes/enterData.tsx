@@ -12,6 +12,7 @@ import { Button, Select, TabItem, Table, TableBody, TableCell, TableHead, TableH
 import { Card, CardTitle } from "~/components/card";
 import { useAppState, type DocumentEntry } from "~/utils/flowStorage";
 import type { DoctypeField } from "~/state";
+import { CheckboxTristate } from "~/components/CheckboxTristate";
 import type { Route } from "./+types/enterData";
 
 type EnterDataFormData = {
@@ -216,11 +217,22 @@ const DocumentTableRow = ({
         return (
           <TableCell key={f.name}>
             {active ? (
-              <TextInput
-                {...register(`documents.${index}.values.${f.name}`)}
-                sizing="sm"
-                type={f.type === ":number" ? "number" : "text"}
-              />
+              f.type === ":boolean" ? (
+                <Controller
+                  control={control}
+                  name={`documents.${index}.values.${f.name}`}
+                  render={({ field }) => {
+                    const triValue = field.value === "true" ? true : field.value === "false" ? false : undefined;
+                    return <CheckboxTristate value={triValue} onChange={(v) => field.onChange(v === true ? "true" : v === false ? "false" : "")} />;
+                  }}
+                />
+              ) : (
+                <TextInput
+                  {...register(`documents.${index}.values.${f.name}`)}
+                  sizing="sm"
+                  type={f.type === ":number" ? "number" : "text"}
+                />
+              )
             ) : (
               <span className="text-gray-300 select-none">—</span>
             )}

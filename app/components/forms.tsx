@@ -1,10 +1,9 @@
 import * as fb from "flowbite-react";
+import type { DynamicStringEnumKeysOf } from "flowbite-react/types";
 import { useState, type PropsWithChildren, type ReactElement, type ReactNode } from "react";
-import { Controller, useController, useFormContext, type FieldArray, type FieldArrayPath, type FieldValues, type Path, type RegisterOptions, type Validate } from "react-hook-form";
+import { Controller, useController, useFormContext, type FieldValues, type Path, type RegisterOptions } from "react-hook-form";
 import { useNavigate } from "react-router";
 import { Card } from "./card";
-import { HiCheck } from "react-icons/hi";
-import type { DynamicStringEnumKeysOf } from "flowbite-react/types";
 
 
 export type FormCardProps<T extends FieldValues> = {
