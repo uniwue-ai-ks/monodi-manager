@@ -86,7 +86,7 @@ export const MetadataPage = () => {
 
   const onSubmit = (data: EnterDataFormData) => {
     storage.patchContents({ documents: data.documents });
-    navigate("/step5");
+    navigate("/step5", { state: { filesByDoctype: locationState?.filesByDoctype } });
   };
 
   return (
