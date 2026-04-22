@@ -3,6 +3,12 @@ import { useNavigate } from "react-router";
 import { Button, TabItem, Tabs } from "flowbite-react";
 import { Card, CardTitle } from "~/components/card";
 import { useAppState } from "~/utils/flowStorage";
+import {
+  collectPdfNames,
+  createPdfNamesByDoctype,
+  mergePdfNames,
+  type PdfNamesByDoctype,
+} from "~/utils/pdfUploads";
 import type { Route } from "./+types/upload";
 
 export const meta = ({}: Route.MetaArgs) => {
@@ -13,7 +19,7 @@ export const meta = ({}: Route.MetaArgs) => {
 }
 
 type DropZoneProps = {
-  files: File[];
+  files: string[];
   onAdd: (newFiles: FileList | null) => void;
   onRemove: (name: string) => void;
 };
@@ -55,24 +61,27 @@ const DropZone = ({ files, onAdd, onRemove }: DropZoneProps) => {
           accept="application/pdf"
           multiple
           className="hidden"
-          onChange={(e) => onAdd(e.target.files)}
+          onChange={(e) => {
+            onAdd(e.target.files);
+            e.target.value = "";
+          }}
         />
       </div>
 
       {files.length > 0 && (
         <ul className="space-y-2 max-h-60 overflow-y-auto">
-          {files.map((f) => (
+          {files.map((name) => (
             <li
-              key={f.name}
+              key={name}
               className="flex items-center justify-between bg-gray-50 rounded px-3 py-2"
             >
-              <span className="text-sm truncate">{f.name}</span>
+              <span className="text-sm truncate">{name}</span>
               <button
                 type="button"
-                aria-label={`${f.name} entfernen`}
+                aria-label={`${name} entfernen`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onRemove(f.name);
+                  onRemove(name);
                 }}
                 className="text-red-500 hover:text-red-700 ml-2 text-sm font-bold shrink-0"
               >
@@ -91,23 +100,25 @@ export const PdfUploadPage = () => {
   const storage = useAppState();
   const doctypeNames = Object.keys(storage.contents.doctypes ?? {});
 
-  const [filesByDoctype, setFilesByDoctype] = useState<Record<string, File[]>>(
-    () => Object.fromEntries(doctypeNames.map((n) => [n, []]))
+  const [filesByDoctype, setFilesByDoctype] = useState<PdfNamesByDoctype>(
+    () => createPdfNamesByDoctype(doctypeNames),
   );
 
-  const addFiles = (doctype: string, newFiles: FileList | null) => {
-    if (!newFiles) return;
-    const pdfs = Array.from(newFiles).filter((f) => f.type === "application/pdf");
+  const addFiles = async (doctype: string, newFiles: FileList | null) => {
+    const pdfNames = await collectPdfNames(doctype, newFiles);
+    if (pdfNames.length === 0) return;
+
     setFilesByDoctype((prev) => {
-      const existing = new Set((prev[doctype] ?? []).map((f) => f.name));
-      return { ...prev, [doctype]: [...(prev[doctype] ?? []), ...pdfs.filter((f) => !existing.has(f.name))] };
+      const next = { ...prev };
+      next[doctype] = mergePdfNames(prev[doctype] ?? [], pdfNames);
+      return next;
     });
   };
 
   const removeFile = (doctype: string, name: string) => {
     setFilesByDoctype((prev) => ({
       ...prev,
-      [doctype]: (prev[doctype] ?? []).filter((f) => f.name !== name),
+      [doctype]: (prev[doctype] ?? []).filter((filename) => filename !== name),
     }));
   };
 
@@ -118,13 +129,16 @@ export const PdfUploadPage = () => {
       <div className="col-span-3 space-y-4">
         <CardTitle>PDF-Dateien hinzufügen</CardTitle>
         <p>
-          Fügen Sie die PDF-Dateien hinzu, die in Monodi verfügbar sein sollen.
+          Wählen Sie PDF-Dateien aus, damit ihre Dateinamen in den folgenden Schritten
+          verwendet werden. Die PDF-Inhalte werden aktuell nicht gespeichert.
         </p>
 
         {doctypeNames.length <= 1 ? (
           <DropZone
             files={filesByDoctype[doctypeNames[0]] ?? []}
-            onAdd={(f) => addFiles(doctypeNames[0], f)}
+            onAdd={(f) => {
+              void addFiles(doctypeNames[0], f);
+            }}
             onRemove={(name) => removeFile(doctypeNames[0], name)}
           />
         ) : (
@@ -133,7 +147,9 @@ export const PdfUploadPage = () => {
               <TabItem key={name} title={`${name} (${(filesByDoctype[name] ?? []).length})`}>
                 <DropZone
                   files={filesByDoctype[name] ?? []}
-                  onAdd={(f) => addFiles(name, f)}
+                  onAdd={(f) => {
+                    void addFiles(name, f);
+                  }}
                   onRemove={(fname) => removeFile(name, fname)}
                 />
               </TabItem>

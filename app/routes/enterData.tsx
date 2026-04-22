@@ -12,6 +12,7 @@ import { Alert, Button, Select, TabItem, Table, TableBody, TableCell, TableHead,
 import { HiExclamationCircle, HiExclamationTriangle } from "react-icons/hi2";
 import { Card, CardTitle } from "~/components/card";
 import { useAppState, type DocumentEntry } from "~/utils/flowStorage";
+import type { PdfNamesByDoctype } from "~/utils/pdfUploads";
 import type { DoctypeField } from "~/state";
 import { CheckboxTristate } from "~/components/CheckboxTristate";
 import { exportToCsv, importFromCsv, type ImportErrors, type ImportWarnings } from "~/utils/csvImportExport";
@@ -116,7 +117,8 @@ const ImportAlerts = ({ errors, warnings, showErrorsOnly, onToggleFilter }: Impo
             ))}
           </ul>
           <p className="text-sm mt-1">
-            Diese Dateien werden für den RDF-Export verwendet, müssen aber für die PDF-Paketierung manuell hochgeladen werden.
+            Diese Dateinamen werden für den RDF-Export verwendet, sind aber nicht in der
+            aktuellen Upload-Liste enthalten.
           </p>
         </Alert>
       )}
@@ -129,7 +131,7 @@ const ImportAlerts = ({ errors, warnings, showErrorsOnly, onToggleFilter }: Impo
 export const MetadataPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const locationState = location.state as { files?: File[]; filesByDoctype?: Record<string, File[]>; uploadSkipped?: boolean } | null;
+  const locationState = location.state as { filesByDoctype?: PdfNamesByDoctype; uploadSkipped?: boolean } | null;
   const uploadSkipped = locationState?.uploadSkipped ?? false;
 
   const storage = useAppState();
@@ -165,17 +167,17 @@ export const MetadataPage = () => {
   const multipleTypes = doctypeNames.length > 1;
   const existingDocs = storage.contents.documents ?? [];
 
-  const incomingFiles: { file: File; doctype: string }[] = locationState?.filesByDoctype
+  const incomingFiles: { filename: string; doctype: string }[] = locationState?.filesByDoctype
     ? Object.entries(locationState.filesByDoctype).flatMap(([doctype, files]) =>
-      files.map((file) => ({ file, doctype }))
+      files.map((filename) => ({ filename, doctype }))
     )
-    : (locationState?.files ?? []).map((file) => ({ file, doctype: defaultDoctype }));
+    : [];
 
   const initialDocs: DocumentEntry[] =
     incomingFiles.length > 0
-      ? incomingFiles.map(({ file, doctype }) => {
-        const existing = existingDocs.find((d) => d.filename === file.name);
-        return existing ?? { filename: file.name, doctype, values: {} };
+      ? incomingFiles.map(({ filename, doctype }) => {
+        const existing = existingDocs.find((d) => d.filename === filename);
+        return existing ?? { filename, doctype, values: {} };
       })
       : existingDocs;
 
@@ -196,7 +198,7 @@ export const MetadataPage = () => {
 
   const onSubmit = (data: EnterDataFormData) => {
     storage.patchContents({ documents: data.documents });
-    navigate("/step5", { state: { filesByDoctype: locationState?.filesByDoctype, uploadSkipped } });
+    navigate("/step5");
   };
 
   const handleExport = (doctype: string) => {

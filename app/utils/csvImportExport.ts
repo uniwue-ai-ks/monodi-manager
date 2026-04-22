@@ -165,7 +165,7 @@ export function importFromCsv(
     if (isNew) {
       doc = { filename, doctype, values: {} };
       warnings[filename] =
-        'Diese Datei wurde noch nicht hochgeladen. Sie wird für den RDF-Export verwendet, muss aber für die PDF-Paketierung manuell bereitgestellt werden.';
+        "Diese Datei ist noch nicht in der Upload-Liste enthalten. Ihr Dateiname wird trotzdem fuer den RDF-Export verwendet.";
     }
 
     const rowErrors: Record<string, string> = {};

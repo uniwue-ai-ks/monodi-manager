@@ -115,7 +115,7 @@ export function generateTtl(state: AppState): string {
       const propSlug = classSlug + toSlug(field.name).replace(/^./, (c) => c.toUpperCase());
 
       if (field.type === ":pdf") {
-        // PDF path relative to ZIP structure: <DoctypeName>/<filename>
+        // PDF path as referenced by Monodi: <DoctypeName>/<filename>
         const pdfPath = `${doc.doctype}/${doc.filename}`;
         triples.push(`  data:${propSlug} "${escapeTtl(pdfPath)}"`);
       } else {
