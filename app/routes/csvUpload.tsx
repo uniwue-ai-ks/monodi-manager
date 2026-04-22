@@ -49,6 +49,9 @@ export const CsvUploadPage = () => {
         setCsvFilename(file.name);
       }
     };
+    reader.onerror = () => {
+      setParseError("Datei konnte nicht gelesen werden.");
+    };
     reader.readAsText(file);
   };
 

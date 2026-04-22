@@ -164,6 +164,9 @@ export const MetadataPage = () => {
         alert(`Fehler beim Importieren: ${err instanceof Error ? err.message : String(err)}`);
       }
     };
+    reader.onerror = () => {
+      alert("Datei konnte nicht gelesen werden.");
+    };
     reader.readAsText(file);
   };
 
