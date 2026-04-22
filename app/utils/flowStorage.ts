@@ -27,4 +27,5 @@ export type AppState = {
   createdAt?: string;
   doctypes?: Doctypes;
   documents?: DocumentEntry[];
+  workflow?: "csv";
 };

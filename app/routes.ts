@@ -5,6 +5,7 @@ export default [
   route("doctypes", "routes/doctypes.tsx"),
   route("doctypeFields/:name", "routes/doctypeFields.tsx"),
   route("upload", "routes/upload.tsx"),
+  route("csvUpload", "routes/csvUpload.tsx"),
   route("enterData", "routes/enterData.tsx"),
   route("step5", "routes/export.tsx"),
 ] satisfies RouteConfig;

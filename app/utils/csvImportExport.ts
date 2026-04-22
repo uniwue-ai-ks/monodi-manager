@@ -27,7 +27,7 @@ function csvRow(cells: string[]): string {
  * Parse a single CSV line respecting quoted fields.
  * Returns an array of unescaped field values.
  */
-function parseCsvLine(line: string): string[] {
+export function parseCsvLine(line: string): string[] {
   const fields: string[] = [];
   let i = 0;
   while (i <= line.length) {
@@ -73,7 +73,7 @@ function parseCsvLine(line: string): string[] {
 /**
  * Split CSV text into rows, handling quoted newlines.
  */
-function splitCsvRows(text: string): string[] {
+export function splitCsvRows(text: string): string[] {
   const rows: string[] = [];
   let current = '';
   let inQuotes = false;

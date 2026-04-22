@@ -17,9 +17,9 @@ export const DoctypeFieldsPage = ({ params }: Route.ComponentProps) => {
   const doctypes = storage.contents.doctypes ?? {}
   const names = Object.keys(doctypes)
   const nextName = names[(names.indexOf(params.name) ?? 0) + 1]
+  const isCsvWorkflow = storage.contents.workflow === "csv"
 
   const doctypeFields = doctypes[params.name]
-
 
   useEffect(() => {
     if (doctypes[params.name] === undefined || Object.keys(doctypes).length === 0) {
@@ -28,18 +28,25 @@ export const DoctypeFieldsPage = ({ params }: Route.ComponentProps) => {
     }
   }, [navigate])
 
-  const next = nextName === undefined ? "/upload" : `/doctypeFields/${nextName}`
+  const next = nextName === undefined
+    ? (isCsvWorkflow ? null : "/upload")
+    : `/doctypeFields/${nextName}`
+
   const onSubmit = (fieldsData: FieldsFormdata) => {
     const existing = storage.contents
     const newDoctypes = { ...existing.doctypes }
     newDoctypes[params.name] = fieldsData.fields;
     storage.patchContents({ doctypes: newDoctypes })
-    navigate(next)
+    if (nextName === undefined && isCsvWorkflow) {
+      navigate("/enterData", { state: { uploadSkipped: true } })
+    } else {
+      navigate(next!)
+    }
   }
 
   return <DoctypeFields
     onSubmit={onSubmit}
-    onBack={() => navigate("/doctypes")}
+    onBack={() => navigate(isCsvWorkflow ? "/csvUpload" : "/doctypes")}
     doctypeName={params.name}
     initialFields={doctypeFields}
     isFinal={nextName === undefined} />;
