@@ -24,7 +24,7 @@ type DoctypeFieldsProps = {
 
 export const DoctypeFields = ({ onSubmit, onBack, initialFields, doctypeName, isFinal }: DoctypeFieldsProps) => {
   const normalized = initialFields.map(f => ({ useSeparator: false, searchable: false, showInResults: false, ...f }));
-  const methods = useForm<FieldsFormdata>({ values: { fields: normalized } });
+  const methods = useForm<FieldsFormdata>({ defaultValues: { fields: normalized } });
 
   return <FormProvider {...methods}>
     <FormCard next={isFinal ? "nächster Schritt" : "nächster Dokumententyp"} onSubmit={onSubmit} onBack={onBack}>

@@ -129,8 +129,10 @@ export const CsvUploadPage = () => {
             </p>
             <Table>
               <TableHead>
-                <TableHeadCell>Feldname</TableHeadCell>
-                <TableHeadCell>Erkannter Typ</TableHeadCell>
+                <TableRow>
+                  <TableHeadCell>Feldname</TableHeadCell>
+                  <TableHeadCell>Erkannter Typ</TableHeadCell>
+                </TableRow>
               </TableHead>
               <TableBody className="divide-y">
                 {parseResult.fields.map((f) => (

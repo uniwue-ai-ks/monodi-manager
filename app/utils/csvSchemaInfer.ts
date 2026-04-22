@@ -112,7 +112,19 @@ export function inferSchemaFromCsv(rawCsv: string, doctypeName: string): CsvSche
       const values: Record<string, string> = {};
       for (let fi = 0; fi < fields.length; fi++) {
         const colIdx = fieldColIndices[fi];
-        values[fields[fi].name] = (row[colIdx] ?? "").trim();
+        const raw = (row[colIdx] ?? "").trim();
+        if (fields[fi].type === ":boolean") {
+          const lower = raw.toLowerCase();
+          if (lower === "true" || lower === "wahr" || lower === "ja") {
+            values[fields[fi].name] = "true";
+          } else if (lower === "false" || lower === "falsch" || lower === "nein") {
+            values[fields[fi].name] = "false";
+          } else {
+            values[fields[fi].name] = "";
+          }
+        } else {
+          values[fields[fi].name] = raw;
+        }
       }
       return { filename, doctype: doctypeName, values };
     })
