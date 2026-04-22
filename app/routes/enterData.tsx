@@ -1,28 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
-  Controller,
   FormProvider,
   useFieldArray,
   useForm,
-  useFormContext,
-  useWatch,
 } from "react-hook-form";
-import { Alert, Button, Select, TabItem, Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow, Tabs, TextInput, Tooltip } from "flowbite-react";
-import { HiExclamationCircle, HiExclamationTriangle } from "react-icons/hi2";
+import { Button, TabItem, Table, TableBody, TableHead, TableHeadCell, TableRow, Tabs } from "flowbite-react";
+import { HiExclamationCircle } from "react-icons/hi2";
 import { Card, CardTitle } from "~/components/card";
 import { useAppState, type DocumentEntry } from "~/utils/flowStorage";
 import type { PdfNamesByDoctype } from "~/utils/pdfUploads";
 import type { DoctypeField } from "~/state";
-import { CheckboxTristate } from "~/components/CheckboxTristate";
 import { exportToCsv, importFromCsv, type ImportErrors, type ImportWarnings } from "~/utils/csvImportExport";
 import type { Route } from "./+types/enterData";
+import { DocumentTableRow, ImportAlerts, PaginationControls } from "~/components/enterData";
+import type { EnterDataFormData } from "~/components/enterData/types";
+import { CsvToolbar } from "~/components/enterData/CsvToolbar";
 
 const PAGE_SIZE = 100;
-
-type EnterDataFormData = {
-  documents: DocumentEntry[];
-};
 
 export const meta = ({ }: Route.MetaArgs) => {
   return [
@@ -42,119 +37,6 @@ function triggerCsvDownload(csvText: string, filename: string) {
   a.click();
   URL.revokeObjectURL(url);
 }
-
-// ─── Toolbar (export + import buttons) ───────────────────────────────────────
-
-type CsvToolbarProps = {
-  onExport: () => void;
-  onImport: (file: File) => void;
-};
-
-const CsvToolbar = ({ onExport, onImport }: CsvToolbarProps) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      onImport(file);
-      e.target.value = "";
-    }
-  };
-
-  return (
-    <div className="flex gap-2">
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".csv"
-        className="hidden"
-        onChange={handleFileChange}
-      />
-      <Button size="xs" color="light" onClick={onExport}>
-        CSV exportieren
-      </Button>
-      <Button size="xs" color="light" onClick={() => fileInputRef.current?.click()}>
-        CSV importieren
-      </Button>
-    </div>
-  );
-};
-
-// ─── Error / warning alerts ───────────────────────────────────────────────────
-
-type ImportAlertsProps = {
-  errors: ImportErrors;
-  warnings: ImportWarnings;
-  showErrorsOnly: boolean;
-  onToggleFilter: () => void;
-};
-
-const ImportAlerts = ({ errors, warnings, showErrorsOnly, onToggleFilter }: ImportAlertsProps) => {
-  const errorCount = Object.keys(errors).length;
-  const warningCount = Object.keys(warnings).length;
-
-  return (
-    <div className="space-y-2 mb-3">
-      {errorCount > 0 && (
-        <Alert color="failure" icon={HiExclamationCircle}>
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <span>
-              <strong>{errorCount} {errorCount === 1 ? "Zeile hat" : "Zeilen haben"} Importfehler.</strong>
-              {" "}Ungültige Werte wurden auf leer oder unbestimmt gesetzt.
-            </span>
-            <Button size="xs" color="failure" onClick={onToggleFilter}>
-              {showErrorsOnly ? "Alle anzeigen" : "Nur Fehler anzeigen"}
-            </Button>
-          </div>
-        </Alert>
-      )}
-      {warningCount > 0 && (
-        <Alert color="warning" icon={HiExclamationTriangle}>
-          <p className="font-semibold mb-1">
-            {warningCount} {warningCount === 1 ? "Datei wurde" : "Dateien wurden"} importiert, aber noch nicht hochgeladen:
-          </p>
-          <ul className="list-disc pl-4 text-sm space-y-0.5">
-            {Object.keys(warnings).map((filename) => (
-              <li key={filename}><code>{filename}</code></li>
-            ))}
-          </ul>
-          <p className="text-sm mt-1">
-            Diese Dateinamen werden für den RDF-Export verwendet, sind aber nicht in der
-            aktuellen Upload-Liste enthalten.
-          </p>
-        </Alert>
-      )}
-    </div>
-  );
-};
-
-// ─── Pagination controls ──────────────────────────────────────────────────────
-
-type PaginationControlsProps = {
-  page: number;
-  totalPages: number;
-  totalRows: number;
-  onPage: (p: number) => void;
-};
-
-const PaginationControls = ({ page, totalPages, totalRows, onPage }: PaginationControlsProps) => {
-  if (totalPages <= 1) return null;
-  const start = page * PAGE_SIZE + 1;
-  const end = Math.min((page + 1) * PAGE_SIZE, totalRows);
-  return (
-    <div className="flex items-center justify-between mt-3">
-      <Button size="xs" color="light" disabled={page === 0} onClick={() => onPage(page - 1)}>
-        ← Zurück
-      </Button>
-      <span className="text-sm text-gray-600">
-        {start}–{end} von {totalRows} · Seite {page + 1} von {totalPages}
-      </span>
-      <Button size="xs" color="light" disabled={page >= totalPages - 1} onClick={() => onPage(page + 1)}>
-        Weiter →
-      </Button>
-    </div>
-  );
-};
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
@@ -455,122 +337,3 @@ export const MetadataPage = () => {
   );
 }
 export default MetadataPage;
-
-// ─── Table row ───────────────────────────────────────────────────────────────
-
-type DocumentTableRowProps = {
-  index: number;
-  doctypeNames: string[];
-  allFields: DoctypeField[];
-  doctypeFieldMap: Map<string, Set<string>>;
-  multipleTypes: boolean;
-  rowErrors?: Record<string, string>;
-  isWarning?: boolean;
-};
-
-const DocumentTableRow = ({
-  index,
-  doctypeNames,
-  allFields,
-  doctypeFieldMap,
-  multipleTypes,
-  rowErrors,
-  isWarning,
-}: DocumentTableRowProps) => {
-  const { register, control } = useFormContext<EnterDataFormData>();
-  const doctype = useWatch({ control, name: `documents.${index}.doctype` });
-  const filename = useWatch({ control, name: `documents.${index}.filename` });
-  const activeFields = doctypeFieldMap.get(doctype) ?? new Set<string>();
-
-  const rowBg = isWarning ? "bg-yellow-50" : "bg-white";
-
-  return (
-    <TableRow className={rowBg}>
-      <TableCell className="whitespace-nowrap font-medium text-gray-900">
-        <input type="hidden" {...register(`documents.${index}.filename`)} />
-        <span className="flex items-center gap-1">
-          {isWarning && (
-            <Tooltip content="Datei noch nicht hochgeladen">
-              <HiExclamationTriangle className="text-yellow-500 w-4 h-4 shrink-0" />
-            </Tooltip>
-          )}
-          {filename}
-        </span>
-      </TableCell>
-      {multipleTypes && (
-        <TableCell>
-          <Controller
-            control={control}
-            name={`documents.${index}.doctype`}
-            render={({ field }) => (
-              <Select {...field} sizing="sm">
-                {doctypeNames.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </Select>
-            )}
-          />
-        </TableCell>
-      )}
-      {allFields.map((f) => {
-        const active = !multipleTypes || activeFields.has(f.name);
-        const fieldError = rowErrors?.[f.name];
-        return (
-          <TableCell key={f.name}>
-            {active ? (
-              fieldError ? (
-                <Tooltip content={fieldError}>
-                  <div className="ring-2 ring-red-500 rounded inline-block">
-                    <FieldInput f={f} index={index} control={control} register={register} />
-                  </div>
-                </Tooltip>
-              ) : (
-                <FieldInput f={f} index={index} control={control} register={register} />
-              )
-            ) : (
-              <span className="text-gray-300 select-none">—</span>
-            )}
-          </TableCell>
-        );
-      })}
-    </TableRow>
-  );
-};
-
-// ─── Field input ─────────────────────────────────────────────────────────────
-
-type FieldInputProps = {
-  f: DoctypeField;
-  index: number;
-  control: ReturnType<typeof useFormContext<EnterDataFormData>>["control"];
-  register: ReturnType<typeof useFormContext<EnterDataFormData>>["register"];
-};
-
-const FieldInput = ({ f, index, control, register }: FieldInputProps) => {
-  if (f.type === ":boolean") {
-    return (
-      <Controller
-        control={control}
-        name={`documents.${index}.values.${f.name}`}
-        render={({ field }) => {
-          const triValue = field.value === "true" ? true : field.value === "false" ? false : undefined;
-          return (
-            <CheckboxTristate
-              value={triValue}
-              onChange={(v) => field.onChange(v === true ? "true" : v === false ? "false" : "")}
-            />
-          );
-        }}
-      />
-    );
-  }
-  return (
-    <TextInput
-      {...register(`documents.${index}.values.${f.name}`)}
-      sizing="sm"
-      type={f.type === ":number" ? "number" : "text"}
-    />
-  );
-};
