@@ -27,7 +27,7 @@ function fileSlug(filename: string): string {
 
 /** Escape a string for use inside a Turtle double-quoted literal. */
 function escapeTtl(value: string): string {
-  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\r/g, "\\r");
+  return value.replace(/\\/g, "\\\\").replace(/\t/g, "\\t").replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\r/g, "\\r");
 }
 
 /** Map a DocumentPosition slug to the Turtle blank-node key. */
