@@ -105,7 +105,8 @@ const PdfDropZones = ({ filesByDoctype, doctypeNames, onChange }: DropZoneProps)
 export const ExportPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const locationState = location.state as { filesByDoctype?: Record<string, File[]> } | null;
+  const locationState = location.state as { filesByDoctype?: Record<string, File[]>; uploadSkipped?: boolean } | null;
+  const uploadSkipped = locationState?.uploadSkipped ?? false;
 
   const storage = useAppState();
   const state = storage.contents;
@@ -166,31 +167,33 @@ export const ExportPage = () => {
       <hr className="text-gray-300" />
 
       {/* ZIP section */}
-      <div className="space-y-4">
-        <h2 className="font-semibold">ZIP-Archiv (RDF + PDFs)</h2>
-        <p className="text-sm text-gray-600">
-          Fügen Sie die PDF-Dateien hinzu, die in das ZIP-Archiv aufgenommen werden sollen.
-          Die Dateien werden nach Dokumententyp in Unterordner sortiert.
-        </p>
-
-        <PdfDropZones
-          filesByDoctype={filesByDoctype}
-          doctypeNames={doctypeNames}
-          onChange={setFilesByDoctype}
-        />
-
-        <Button
-          disabled={totalFiles === 0}
-          onClick={handleDownloadZip}
-        >
-          monodi-export.zip herunterladen
-        </Button>
-        {totalFiles === 0 && (
-          <p className="text-sm text-gray-400">
-            Bitte fügen Sie PDFs hinzu, um das ZIP-Archiv herunterladen zu können.
+      {!uploadSkipped && (
+        <div className="space-y-4">
+          <h2 className="font-semibold">ZIP-Archiv (RDF + PDFs)</h2>
+          <p className="text-sm text-gray-600">
+            Fügen Sie die PDF-Dateien hinzu, die in das ZIP-Archiv aufgenommen werden sollen.
+            Die Dateien werden nach Dokumententyp in Unterordner sortiert.
           </p>
-        )}
-      </div>
+
+          <PdfDropZones
+            filesByDoctype={filesByDoctype}
+            doctypeNames={doctypeNames}
+            onChange={setFilesByDoctype}
+          />
+
+          <Button
+            disabled={totalFiles === 0}
+            onClick={handleDownloadZip}
+          >
+            monodi-export.zip herunterladen
+          </Button>
+          {totalFiles === 0 && (
+            <p className="text-sm text-gray-400">
+              Bitte fügen Sie PDFs hinzu, um das ZIP-Archiv herunterladen zu können.
+            </p>
+          )}
+        </div>
+      )}
 
       <hr className="text-gray-300" />
       <Button color="light" onClick={() => navigate(-1)}>

@@ -178,15 +178,15 @@ export function importFromCsv(
 
       if (field.type === ':boolean') {
         const lower = raw.trim().toLowerCase();
-        if (lower === 'true') {
+        if (lower === 'true' || lower === 'wahr' || lower === 'ja') {
           doc!.values[field.name] = 'true';
-        } else if (lower === 'false') {
+        } else if (lower === 'false' || lower === 'falsch' || lower === 'nein') {
           doc!.values[field.name] = 'false';
         } else if (lower === '') {
           doc!.values[field.name] = '';
         } else {
           doc!.values[field.name] = ''; // indeterminate
-          rowErrors[field.name] = `Ungültiger Ja/Nein-Wert: "${raw}" (erwartet: true, false oder leer)`;
+          rowErrors[field.name] = `Ungültiger Ja/Nein-Wert: "${raw}" (erwartet: true/WAHR/ja, false/FALSCH/nein oder leer)`;
         }
       } else if (field.type === ':number') {
         if (raw.trim() === '') {

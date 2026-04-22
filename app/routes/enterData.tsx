@@ -129,7 +129,8 @@ const ImportAlerts = ({ errors, warnings, showErrorsOnly, onToggleFilter }: Impo
 export const MetadataPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const locationState = location.state as { files?: File[]; filesByDoctype?: Record<string, File[]> } | null;
+  const locationState = location.state as { files?: File[]; filesByDoctype?: Record<string, File[]>; uploadSkipped?: boolean } | null;
+  const uploadSkipped = locationState?.uploadSkipped ?? false;
 
   const storage = useAppState();
   const doctypes = storage.contents.doctypes ?? {};
@@ -188,14 +189,14 @@ export const MetadataPage = () => {
   const [showErrorsOnly, setShowErrorsOnly] = useState(false);
 
   useEffect(() => {
-    if (incomingFiles.length === 0 && existingDocs.length === 0) {
+    if (!uploadSkipped && incomingFiles.length === 0 && existingDocs.length === 0) {
       navigate("/upload");
     }
   }, []);
 
   const onSubmit = (data: EnterDataFormData) => {
     storage.patchContents({ documents: data.documents });
-    navigate("/step5", { state: { filesByDoctype: locationState?.filesByDoctype } });
+    navigate("/step5", { state: { filesByDoctype: locationState?.filesByDoctype, uploadSkipped } });
   };
 
   const handleExport = (doctype: string) => {
@@ -256,7 +257,7 @@ export const MetadataPage = () => {
       <>
         <ImportAlerts
           errors={tabErrors}
-          warnings={tabWarnings}
+          warnings={uploadSkipped ? {} : tabWarnings}
           showErrorsOnly={showErrorsOnly}
           onToggleFilter={() => setShowErrorsOnly((v) => !v)}
         />
@@ -278,7 +279,7 @@ export const MetadataPage = () => {
                   doctypeFieldMap={doctypeFieldMap}
                   multipleTypes={false}
                   rowErrors={importErrors[row.filename]}
-                  isWarning={warningFilenames.has(row.filename)}
+                  isWarning={!uploadSkipped && warningFilenames.has(row.filename)}
                 />
               ))}
             </TableBody>
@@ -332,7 +333,7 @@ export const MetadataPage = () => {
               </div>
               <ImportAlerts
                 errors={importErrors}
-                warnings={importWarnings}
+                warnings={uploadSkipped ? {} : importWarnings}
                 showErrorsOnly={showErrorsOnly}
                 onToggleFilter={() => setShowErrorsOnly((v) => !v)}
               />
@@ -357,7 +358,7 @@ export const MetadataPage = () => {
                           doctypeFieldMap={doctypeFieldMap}
                           multipleTypes={false}
                           rowErrors={importErrors[row.filename]}
-                          isWarning={warningFilenames.has(row.filename)}
+                          isWarning={!uploadSkipped && warningFilenames.has(row.filename)}
                         />
                       ))}
                   </TableBody>

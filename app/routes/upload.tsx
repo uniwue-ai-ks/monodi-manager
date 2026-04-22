@@ -147,6 +147,13 @@ export const PdfUploadPage = () => {
         zurück
       </Button>
       <Button
+        color="light"
+        className="col-start-2"
+        onClick={() => navigate("/enterData", { state: { uploadSkipped: true } })}
+      >
+        überspringen
+      </Button>
+      <Button
         className="col-start-3"
         disabled={totalFiles === 0}
         onClick={() => navigate("/enterData", { state: { filesByDoctype } })}
