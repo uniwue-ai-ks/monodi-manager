@@ -17,7 +17,7 @@ export const CardTitle = ({ children }: { children: React.ReactNode }) => {
 export const CardSection = ({ heading, children }: { heading: string | React.ReactNode, children: React.ReactNode }) => {
   return <div className="">
     <hr className="text-gray-300" />
-    <h3 className="text-l font-bold">{heading}</h3>
+    <h3 className="text-lg font-bold">{heading}</h3>
     {children}
   </div>
 }
