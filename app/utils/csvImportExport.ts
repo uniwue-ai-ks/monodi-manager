@@ -30,11 +30,7 @@ function csvRow(cells: string[]): string {
 export function parseCsvLine(line: string): string[] {
   const fields: string[] = [];
   let i = 0;
-  while (i <= line.length) {
-    if (i === line.length) {
-      fields.push('');
-      break;
-    }
+  while (i < line.length) {
     if (line[i] === '"') {
       // Quoted field
       let value = '';
