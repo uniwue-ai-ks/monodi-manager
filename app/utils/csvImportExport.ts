@@ -191,7 +191,7 @@ export function importFromCsv(
       } else if (field.type === ':number') {
         if (raw.trim() === '') {
           doc!.values[field.name] = '';
-        } else if (!isNaN(Number(raw.trim()))) {
+        } else if (/^-?\d+$/.test(raw.trim())) {
           doc!.values[field.name] = raw.trim();
         } else {
           doc!.values[field.name] = ''; // empty on parse failure

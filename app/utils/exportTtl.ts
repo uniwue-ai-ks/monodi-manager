@@ -122,7 +122,11 @@ export function generateTtl(state: AppState): string {
         const value = doc.values[field.name];
         if (value !== undefined && value !== "") {
           if (field.type === ":number") {
-            triples.push(`  data:${propSlug} ${value}^^xsd:integer`);
+            if (/^-?\d+$/.test(value)) {
+              triples.push(`  data:${propSlug} ${value}^^xsd:integer`);
+            } else {
+              triples.push(`  data:${propSlug} "${escapeTtl(value)}"^^xsd:decimal`);
+            }
           } else if (field.type === ":boolean") {
             triples.push(`  data:${propSlug} "${value === "true" ? "true" : "false"}"`);
           } else {
