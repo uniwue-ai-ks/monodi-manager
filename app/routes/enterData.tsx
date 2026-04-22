@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
   Controller,
@@ -17,6 +17,8 @@ import type { DoctypeField } from "~/state";
 import { CheckboxTristate } from "~/components/CheckboxTristate";
 import { exportToCsv, importFromCsv, type ImportErrors, type ImportWarnings } from "~/utils/csvImportExport";
 import type { Route } from "./+types/enterData";
+
+const PAGE_SIZE = 100;
 
 type EnterDataFormData = {
   documents: DocumentEntry[];
@@ -126,6 +128,34 @@ const ImportAlerts = ({ errors, warnings, showErrorsOnly, onToggleFilter }: Impo
   );
 };
 
+// ─── Pagination controls ──────────────────────────────────────────────────────
+
+type PaginationControlsProps = {
+  page: number;
+  totalPages: number;
+  totalRows: number;
+  onPage: (p: number) => void;
+};
+
+const PaginationControls = ({ page, totalPages, totalRows, onPage }: PaginationControlsProps) => {
+  if (totalPages <= 1) return null;
+  const start = page * PAGE_SIZE + 1;
+  const end = Math.min((page + 1) * PAGE_SIZE, totalRows);
+  return (
+    <div className="flex items-center justify-between mt-3">
+      <Button size="xs" color="light" disabled={page === 0} onClick={() => onPage(page - 1)}>
+        ← Zurück
+      </Button>
+      <span className="text-sm text-gray-600">
+        {start}–{end} von {totalRows} · Seite {page + 1} von {totalPages}
+      </span>
+      <Button size="xs" color="light" disabled={page >= totalPages - 1} onClick={() => onPage(page + 1)}>
+        Weiter →
+      </Button>
+    </div>
+  );
+};
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export const MetadataPage = () => {
@@ -190,6 +220,32 @@ export const MetadataPage = () => {
   const [importWarnings, setImportWarnings] = useState<ImportWarnings>({});
   const [showErrorsOnly, setShowErrorsOnly] = useState(false);
 
+  // Memoized per-doctype row index lists to avoid O(n) scans on every render
+  const rowsByDoctype = useMemo(() => {
+    const map = new Map<string, Array<{ row: (typeof fields)[0]; i: number }>>();
+    fields.forEach((row, i) => {
+      const arr = map.get(row.doctype) ?? [];
+      arr.push({ row, i });
+      map.set(row.doctype, arr);
+    });
+    return map;
+  }, [fields]);
+
+  const filenamesByDoctype = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    fields.forEach((row) => {
+      const set = map.get(row.doctype) ?? new Set<string>();
+      set.add(row.filename);
+      map.set(row.doctype, set);
+    });
+    return map;
+  }, [fields]);
+
+  const [pages, setPages] = useState<Map<string, number>>(new Map());
+  const getPage = (doctype: string) => pages.get(doctype) ?? 0;
+  const setPage = (doctype: string, page: number) =>
+    setPages((prev) => new Map(prev).set(doctype, page));
+
   useEffect(() => {
     if (!uploadSkipped && incomingFiles.length === 0 && existingDocs.length === 0) {
       navigate("/upload");
@@ -243,16 +299,18 @@ export const MetadataPage = () => {
       .some((f) => errorFilenames.has(f.filename) || warningFilenames.has(f.filename));
 
   const renderTable = (doctype: string, tabFields: DoctypeField[]) => {
-    const visibleRows = fields
-      .map((row, i) => ({ row, i }))
-      .filter(({ row }) => row.doctype === doctype)
-      .filter(({ row }) => shouldShowRow(row.filename));
+    const allRows = rowsByDoctype.get(doctype) ?? [];
+    const filenameSet = filenamesByDoctype.get(doctype) ?? new Set<string>();
+    const visibleRows = allRows.filter(({ row }) => shouldShowRow(row.filename));
+    const totalPages = Math.max(1, Math.ceil(visibleRows.length / PAGE_SIZE));
+    const page = Math.min(getPage(doctype), totalPages - 1);
+    const pagedRows = visibleRows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
     const tabErrors = Object.fromEntries(
-      Object.entries(importErrors).filter(([fn]) => fields.some((r) => r.doctype === doctype && r.filename === fn))
+      Object.entries(importErrors).filter(([fn]) => filenameSet.has(fn))
     );
     const tabWarnings = Object.fromEntries(
-      Object.entries(importWarnings).filter(([fn]) => fields.some((r) => r.doctype === doctype && r.filename === fn))
+      Object.entries(importWarnings).filter(([fn]) => filenameSet.has(fn))
     );
 
     return (
@@ -272,7 +330,7 @@ export const MetadataPage = () => {
               ))}
             </TableHead>
             <TableBody className="divide-y">
-              {visibleRows.map(({ row, i }) => (
+              {pagedRows.map(({ row, i }) => (
                 <DocumentTableRow
                   key={row.id}
                   index={i}
@@ -287,9 +345,22 @@ export const MetadataPage = () => {
             </TableBody>
           </Table>
         </div>
+        <PaginationControls
+          page={page}
+          totalPages={totalPages}
+          totalRows={visibleRows.length}
+          onPage={(p) => setPage(doctype, p)}
+        />
       </>
     );
   };
+
+  const singleVisibleRows = fields
+    .map((row, i) => ({ row, i }))
+    .filter(({ row }) => shouldShowRow(row.filename));
+  const singleTotalPages = Math.max(1, Math.ceil(singleVisibleRows.length / PAGE_SIZE));
+  const singlePage = Math.min(getPage(defaultDoctype), singleTotalPages - 1);
+  const singlePagedRows = singleVisibleRows.slice(singlePage * PAGE_SIZE, (singlePage + 1) * PAGE_SIZE);
 
   return (
     <Card className="pb-4 w-full max-w-screen-xl">
@@ -348,24 +419,27 @@ export const MetadataPage = () => {
                     ))}
                   </TableHead>
                   <TableBody className="divide-y">
-                    {fields
-                      .map((row, i) => ({ row, i }))
-                      .filter(({ row }) => shouldShowRow(row.filename))
-                      .map(({ row, i }) => (
-                        <DocumentTableRow
-                          key={row.id}
-                          index={i}
-                          doctypeNames={doctypeNames}
-                          allFields={allFields}
-                          doctypeFieldMap={doctypeFieldMap}
-                          multipleTypes={false}
-                          rowErrors={importErrors[row.filename]}
-                          isWarning={!uploadSkipped && warningFilenames.has(row.filename)}
-                        />
-                      ))}
+                    {singlePagedRows.map(({ row, i }) => (
+                      <DocumentTableRow
+                        key={row.id}
+                        index={i}
+                        doctypeNames={doctypeNames}
+                        allFields={allFields}
+                        doctypeFieldMap={doctypeFieldMap}
+                        multipleTypes={false}
+                        rowErrors={importErrors[row.filename]}
+                        isWarning={!uploadSkipped && warningFilenames.has(row.filename)}
+                      />
+                    ))}
                   </TableBody>
                 </Table>
               </div>
+              <PaginationControls
+                page={singlePage}
+                totalPages={singleTotalPages}
+                totalRows={singleVisibleRows.length}
+                onPage={(p) => setPage(defaultDoctype, p)}
+              />
             </>
           )}
           <hr className="text-gray-300 mt-4" />
