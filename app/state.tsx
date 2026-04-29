@@ -9,7 +9,7 @@ export const typeOptions = {
 
 export type FieldType = keyof typeof typeOptions;
 
-export type DocumentPosition = ":main" | ":header" | ":right" | ":download";
+export type DocumentPosition = ":main" | ":header" | ":right" | ":download" | ":sticky";
 
 export type DoctypeField = {
   name: string;

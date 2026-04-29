@@ -60,7 +60,7 @@ const FieldForm = ({ index }: MultiSubFormChildProps): ReactNode => {
     }
 
     {selectedType != ":pdf" ?
-      [<Toggle name={`fields.${index}.showInResults`} label="In Ergebnisliste anzeigen" />, <span />]
+      [<Toggle name={`fields.${index}.showInResults`} label="In Suche anzeigen" />, <span />]
       : undefined
     }
 

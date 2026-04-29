@@ -36,6 +36,7 @@ const DOC_POSITION_KEY: Record<DocumentPosition, string> = {
   ":header": ":header",
   ":right": ":right",
   ":download": ":download",
+  ":sticky": ":sticky",
 };
 
 export function generateTtl(state: AppState): string {

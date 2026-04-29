@@ -5,6 +5,7 @@ import type { DocumentPosition } from "~/state";
 const Explanation = ({ position }: { position?: DocumentPosition }) => {
   switch (position) {
     case ":main": return <p><strong>Hauptbereich</strong><br/>Feldinhalte werden hier untereinander gezeigt</p>
+    case ":sticky": return <p><strong>fixierter Hauptbereich</strong><br/>Zweite Spalte im Hauptbereich, die nicht mit der anderen mitscrollt.</p>
     case ":header": return <p><strong>Kopfzeilen</strong><br/>Felder werden hier nebeneinander gezeigt, PDFs nur als Link</p>
     case ":right": return <p><strong>Seitenleiste</strong><br/>Felder werden hier jeweils mit dem Feldnamen untereinander gezeigt, PDFs nur als Link</p>
     case ":download": return <p><strong>Downloadbereich</strong><br/>Hier können Dateien als Downloadbutton angezeigt werden</p>
@@ -66,14 +67,26 @@ export const DisplayLocationSelector = (props: DisplayLocationSelectorProps): Re
       <g className="group cursor-pointer" onClick={() => onSelect(":main")} onMouseEnter={() => setHovered(":main")}>
         <rect id="button"
           className={`${fill(":main")} stroke-white stroke-1`}
-          width="32" height="19" x="1" y="6" />
+          width="16" height="19" x="1" y="6" />
         {/* white text lines */}
-        <rect className="fill-white" width="26" height="1" x="4" y="9" />
-        <rect className="fill-white" width="23" height="1" x="4" y="11" />
-        <rect className="fill-white" width="24" height="1" x="4" y="13" />
-        <rect className="fill-white" width="23" height="1" x="4" y="15" />
-        <rect className="fill-white" width="26" height="1" x="4" y="17" />
-        <rect className="fill-white" width="25" height="1" x="4" y="19" />
+        <rect className="fill-white" width="10" height="1" x="4" y="9" />
+        <rect className="fill-white" width="7" height="1" x="4" y="11" />
+        <rect className="fill-white" width="8" height="1" x="4" y="13" />
+        <rect className="fill-white" width="7" height="1" x="4" y="15" />
+        <rect className="fill-white" width="10" height="1" x="4" y="17" />
+        <rect className="fill-white" width="9" height="1" x="4" y="19" />
+      </g>
+      <g className="group cursor-pointer" onClick={() => onSelect(":sticky")} onMouseEnter={() => setHovered(":sticky")}>
+        <rect id="button"
+          className={`${fill(":sticky")} stroke-white stroke-1`}
+          width="16" height="19" x="16" y="6" />
+        {/* white text lines */}
+        <rect className="fill-white" width="10" height="1" x="18" y="9" />
+        <rect className="fill-white" width="7" height="1" x="18" y="11" />
+        <rect className="fill-white" width="8" height="1" x="18" y="13" />
+        <rect className="fill-white" width="7" height="1" x="18" y="15" />
+        <rect className="fill-white" width="10" height="1" x="18" y="17" />
+        <rect className="fill-white" width="9" height="1" x="18" y="19" />
       </g>
     </svg>
     <Explanation position={hovered}/>
