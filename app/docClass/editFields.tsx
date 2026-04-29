@@ -59,6 +59,11 @@ const FieldForm = ({ index }: MultiSubFormChildProps): ReactNode => {
       : undefined
     }
 
+    {selectedType != ":pdf" ?
+      [<Toggle name={`fields.${index}.showInResults`} label="In Ergebnisliste anzeigen" />, <span />]
+      : undefined
+    }
+
     <label htmlFor={`fields.${index}.documentPositions`}>Dokumentenansicht</label>
     <Controller name={`fields.${index}.documentPositions`} control={control} render={({ field }) => {
       return <DisplayLocationSelector {...field} downloadable={selectedType == ":pdf"} />
