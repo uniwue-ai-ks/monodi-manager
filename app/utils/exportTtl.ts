@@ -43,12 +43,18 @@ export function generateTtl(state: AppState): string {
   const doctypes = state.doctypes ?? {};
   const documents = state.documents ?? [];
 
+  const version = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+
   const lines: string[] = [
     "@prefix :     <" + MONODI_NS + "> .",
     "@prefix data: <" + DATA_NS + "> .",
     "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .",
     "@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .",
     "@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .",
+    "",
+    "# Version",
+    "data:version a rdf:Property .",
+    `data:version rdfs:label "${version}" .`,
     "",
   ];
 
