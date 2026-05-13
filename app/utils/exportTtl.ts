@@ -90,6 +90,11 @@ export function generateTtl(state: AppState): string {
         lines.push(`  :headerOrder ${headerOrder++} ;`);
       }
 
+      const shortenIn = field.shortenIn ?? [];
+      if (shortenIn.length > 0) {
+        lines.push(`  :shorten ${shortenIn.join(", ")} ;`);
+      }
+
       const positions = field.documentPositions ?? [];
       if (positions.length > 0) {
         const posEntries = positions

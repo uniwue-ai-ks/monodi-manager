@@ -1,4 +1,5 @@
 import { type ReactNode } from "react";
+import * as fb from "flowbite-react";
 import { Controller, FormProvider, useForm, useFormContext, type FieldArray, type FieldArrayPath, type FieldValues } from "react-hook-form";
 import { CardSection, CardTitle } from "~/components/card";
 import { MultiSubForm, type MultiSubFormChildProps } from "~/components/MultiSubForm";
@@ -64,6 +65,24 @@ const FieldForm = ({ index }: MultiSubFormChildProps): ReactNode => {
 
     {selectedType != ":pdf" ?
       [<Toggle name={`fields.${index}.showInResults`} label="In Suche anzeigen" />, <span />]
+      : undefined
+    }
+
+    {selectedType != ":pdf" ?
+      [
+        <label>Kürzen in Ergebnissen</label>,
+        <Controller
+          name={`fields.${index}.shortenIn`}
+          control={control}
+          render={({ field }) => (
+            <fb.ToggleSwitch
+              checked={Array.isArray(field.value) && (field.value as string[]).includes(":results")}
+              onChange={(checked) => field.onChange(checked ? [":results"] : [])}
+            />
+          )}
+        />,
+        <span />
+      ]
       : undefined
     }
 

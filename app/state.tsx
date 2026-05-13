@@ -11,6 +11,8 @@ export type FieldType = keyof typeof typeOptions;
 
 export type DocumentPosition = ":main" | ":header" | ":right" | ":download" | ":sticky";
 
+export type ShortenPosition = ":results";
+
 export type DoctypeField = {
   name: string;
   /** Optional display name used as rdfs:label; falls back to `name` if absent. */
@@ -20,6 +22,8 @@ export type DoctypeField = {
   searchable?: boolean;
   showInResults?: boolean;
   documentPositions?: DocumentPosition[];
+  /** Positions where the field value should be shortened. */
+  shortenIn?: ShortenPosition[];
 }
 
 export type Doctypes = {[name: string]: DoctypeField[] };
