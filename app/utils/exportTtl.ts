@@ -1,4 +1,5 @@
 import type { AppState } from "~/utils/flowStorage";
+import type { FrontmatterData } from "~/utils/flowStorage";
 import type { DoctypeField, DocumentPosition } from "~/state";
 
 const MONODI_NS = "http://olyro.de/mondiview/";
@@ -30,6 +31,38 @@ function escapeTtl(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/\t/g, "\\t").replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\r/g, "\\r");
 }
 
+/** Escape a string for use inside a Turtle triple-quoted (long) literal. */
+function escapeTtlLong(value: string): string {
+  // Only backslashes and embedded triple-quotes need escaping in long literals.
+  return value.replace(/\\/g, "\\\\").replace(/"""/g, '\\"\\"\\"');
+}
+
+/** Generate the frontmatter TTL block for viewer configuration. */
+function generateFrontmatterTtl(fm: FrontmatterData): string[] {
+  const lines: string[] = ["# Viewer configuration (frontmatter)", ""];
+
+  const textField = (prop: string, value: string) => {
+    lines.push(`:${prop} :hasContent "${escapeTtl(value)}"@de .`);
+  };
+
+  const longField = (prop: string, value: string, langTag?: string) => {
+    const tag = langTag ? `@${langTag}` : "";
+    lines.push(`:${prop} :hasContent """\n${escapeTtlLong(value)}\n"""${tag} .`);
+  };
+
+  textField("tabTitle", fm.tabTitle);
+  textField("headerTitle", fm.headerTitle);
+  textField("copyright", fm.copyright);
+  longField("footer", fm.footer, "de");
+  longField("mainPagePreSearches", fm.mainPagePreSearches, "de");
+  longField("mainPagePostSearches", fm.mainPagePostSearches, "de");
+  longField("customJavascript", fm.customJavascript);
+  longField("customCss", fm.customCss);
+
+  lines.push("");
+  return lines;
+}
+
 /** Map a DocumentPosition slug to the Turtle blank-node key. */
 const DOC_POSITION_KEY: Record<DocumentPosition, string> = {
   ":main": ":main",
@@ -58,6 +91,11 @@ export function generateTtl(state: AppState): string {
     `data:version rdfs:label "${version}" .`,
     "",
   ];
+
+  // ---------- frontmatter ----------
+  if (state.frontmatter) {
+    lines.push(...generateFrontmatterTtl(state.frontmatter));
+  }
 
   // ---------- schema ----------
 

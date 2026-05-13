@@ -7,5 +7,6 @@ export default [
   route("upload", "routes/upload.tsx"),
   route("csvUpload", "routes/csvUpload.tsx"),
   route("enterData", "routes/enterData.tsx"),
+  route("viewerConfig", "routes/viewerConfig.tsx"),
   route("step5", "routes/export.tsx"),
 ] satisfies RouteConfig;

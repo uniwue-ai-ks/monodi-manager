@@ -1,6 +1,28 @@
 import useLocalStorageState from "use-local-storage-state";
 import type { DocumentType, DoctypeField, Doctypes } from "~/state";
 
+export type FrontmatterData = {
+  tabTitle: string;
+  headerTitle: string;
+  copyright: string;
+  footer: string;
+  mainPagePreSearches: string;
+  mainPagePostSearches: string;
+  customJavascript: string;
+  customCss: string;
+};
+
+export const defaultFrontmatter: FrontmatterData = {
+  tabTitle: "",
+  headerTitle: "",
+  copyright: "",
+  footer: "",
+  mainPagePreSearches: "",
+  mainPagePostSearches: "",
+  customJavascript: "",
+  customCss: "",
+};
+
 const KEY = 'createDocFlow_v1';
 
 export const useAppState = () => {
@@ -32,4 +54,6 @@ export type AppState = {
   workflow?: "csv";
   /** Main document type per doctype name. */
   mainDocumentTypes?: Record<string, DocumentType>;
+  /** Viewer-level RDF frontmatter properties. */
+  frontmatter?: FrontmatterData;
 };

@@ -120,7 +120,7 @@ export const MetadataPage = () => {
 
   const onSubmit = (data: EnterDataFormData) => {
     storage.patchContents({ documents: data.documents });
-    navigate("/step5");
+    navigate("/viewerConfig");
   };
 
   const handleExport = (doctype: string) => {
