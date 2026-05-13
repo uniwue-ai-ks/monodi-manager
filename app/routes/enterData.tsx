@@ -9,7 +9,6 @@ import { Button, TabItem, Table, TableBody, TableHead, TableHeadCell, TableRow, 
 import { HiExclamationCircle } from "react-icons/hi2";
 import { Card, CardTitle } from "~/components/card";
 import { useAppState, type DocumentEntry } from "~/utils/flowStorage";
-import type { PdfNamesByDoctype } from "~/utils/pdfUploads";
 import type { DoctypeField } from "~/state";
 import { exportToCsv, importFromCsv, type ImportErrors, type ImportWarnings } from "~/utils/csvImportExport";
 import type { Route } from "./+types/enterData";
@@ -43,7 +42,7 @@ function triggerCsvDownload(csvText: string, filename: string) {
 export const MetadataPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const locationState = location.state as { filesByDoctype?: PdfNamesByDoctype; uploadSkipped?: boolean } | null;
+  const locationState = location.state as { uploadSkipped?: boolean } | null;
   const uploadSkipped = locationState?.uploadSkipped ?? false;
 
   const storage = useAppState();
@@ -55,7 +54,7 @@ export const MetadataPage = () => {
   const seenFieldNames = new Set<string>();
   for (const fields of Object.values(doctypes)) {
     for (const field of fields) {
-      if (!seenFieldNames.has(field.name) && field.type !== ":pdf") {
+      if (!seenFieldNames.has(field.name)) {
         seenFieldNames.add(field.name);
         allFields.push(field);
       }
@@ -65,33 +64,18 @@ export const MetadataPage = () => {
   const doctypeFieldMap = new Map<string, Set<string>>(
     Object.entries(doctypes).map(([name, fields]) => [
       name,
-      new Set(fields.filter((f) => f.type !== ":pdf").map((f) => f.name)),
+      new Set(fields.map((f) => f.name)),
     ])
   );
 
   const doctypeFields = new Map<string, DoctypeField[]>(
-    Object.entries(doctypes).map(([name, fields]) => [
-      name,
-      fields.filter((f) => f.type !== ":pdf"),
-    ])
+    Object.entries(doctypes).map(([name, fields]) => [name, fields])
   );
 
   const multipleTypes = doctypeNames.length > 1;
   const existingDocs = storage.contents.documents ?? [];
 
-  const incomingFiles: { filename: string; doctype: string }[] = locationState?.filesByDoctype
-    ? Object.entries(locationState.filesByDoctype).flatMap(([doctype, files]) =>
-      files.map((filename) => ({ filename, doctype }))
-    )
-    : [];
-
-  const initialDocs: DocumentEntry[] =
-    incomingFiles.length > 0
-      ? incomingFiles.map(({ filename, doctype }) => {
-        const existing = existingDocs.find((d) => d.filename === filename);
-        return existing ?? { filename, doctype, values: {} };
-      })
-      : existingDocs;
+  const initialDocs: DocumentEntry[] = existingDocs;
 
   const methods = useForm<EnterDataFormData>({
     defaultValues: { documents: initialDocs },
@@ -129,7 +113,7 @@ export const MetadataPage = () => {
     setPages((prev) => new Map(prev).set(doctype, page));
 
   useEffect(() => {
-    if (!uploadSkipped && incomingFiles.length === 0 && existingDocs.length === 0) {
+    if (!uploadSkipped && existingDocs.length === 0) {
       navigate("/upload");
     }
   }, []);

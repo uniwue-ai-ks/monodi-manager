@@ -5,13 +5,20 @@ import { HiExclamationCircle, HiExclamationTriangle } from "react-icons/hi2";
 import { Card, CardTitle } from "~/components/card";
 import { DropZone } from "~/components/DropZone";
 import { useAppState } from "~/utils/flowStorage";
-import { collectPdfNames, mergePdfNames } from "~/utils/pdfUploads";
+import {
+  detectDocumentType,
+  readDocumentFiles,
+  mergeDocFiles,
+  docFilesToEntries,
+  type UploadedDocFile,
+} from "~/utils/documentUploads";
 import {
   inferSchemaFromCsv,
   csvSchemaErrorMessage,
   type CsvSchemaResult,
 } from "~/utils/csvSchemaInfer";
-import { typeOptions } from "~/state";
+import { documentTypeOptions, typeOptions } from "~/state";
+import type { DocumentType } from "~/state";
 import type { Route } from "./+types/csvUpload";
 
 const DEFAULT_DOCTYPE = "Dokument";
@@ -30,7 +37,9 @@ export const CsvUploadPage = () => {
   const [csvFilename, setCsvFilename] = useState<string | null>(null);
   const [parseResult, setParseResult] = useState<CsvSchemaResult | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
-  const [pdfFiles, setPdfFiles] = useState<string[]>([]);
+  const [docFiles, setDocFiles] = useState<UploadedDocFile[]>([]);
+  const [detectedDocType, setDetectedDocType] = useState<DocumentType | null>(null);
+  const [mixedTypeError, setMixedTypeError] = useState(false);
   const [ignoreDuplicates, setIgnoreDuplicates] = useState(false);
 
   const parseCsv = (text: string, ignore: boolean) => {
@@ -69,14 +78,26 @@ export const CsvUploadPage = () => {
     setLastCsvText(null);
   };
 
-  const addPdfFiles = async (files: FileList | null) => {
-    const names = await collectPdfNames(DEFAULT_DOCTYPE, files);
-    if (names.length === 0) return;
-    setPdfFiles((prev) => mergePdfNames(prev, names));
+  const addDocFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const detected = detectDocumentType(Array.from(files));
+    if (!detected) {
+      setMixedTypeError(true);
+      return;
+    }
+    setMixedTypeError(false);
+    const read = await readDocumentFiles(files);
+    if (read.length === 0) return;
+    setDocFiles((prev) => mergeDocFiles(prev, read));
+    setDetectedDocType(detected);
   };
 
-  const removePdfFile = (name: string) => {
-    setPdfFiles((prev) => prev.filter((f) => f !== name));
+  const removeDocFile = (name: string) => {
+    setDocFiles((prev) => {
+      const remaining = prev.filter((f) => f.filename !== name);
+      if (remaining.length === 0) setDetectedDocType(null);
+      return remaining;
+    });
   };
 
   const hasExistingData =
@@ -95,10 +116,28 @@ export const CsvUploadPage = () => {
       return;
     }
 
+    // Merge doc file content into the document entries from the CSV
+    const csvDocs = parseResult.documents;
+    const mergedDocs = docFiles.length > 0
+      ? docFilesToEntries(docFiles, DEFAULT_DOCTYPE, csvDocs)
+      : csvDocs;
+
+    // Fill in any CSV documents that weren't matched by an uploaded file
+    const uploadedFilenames = new Set(docFiles.map((f) => f.filename));
+    const finalDocs = csvDocs.map((csvDoc) => {
+      if (uploadedFilenames.has(csvDoc.filename)) {
+        return mergedDocs.find((d) => d.filename === csvDoc.filename) ?? csvDoc;
+      }
+      return csvDoc;
+    });
+
     storage.patchContents({
       doctypes: { [DEFAULT_DOCTYPE]: parseResult.fields },
-      documents: parseResult.documents,
+      documents: finalDocs,
       workflow: "csv",
+      ...(detectedDocType
+        ? { mainDocumentTypes: { [DEFAULT_DOCTYPE]: detectedDocType } }
+        : {}),
     });
     navigate(`/doctypeFields/${DEFAULT_DOCTYPE}`);
   };
@@ -201,13 +240,26 @@ export const CsvUploadPage = () => {
         )}
 
         <div>
-          <h3 className="font-semibold mb-2">2. PDF-Dateien (optional)</h3>
+          <h3 className="font-semibold mb-2">2. Dokumente (optional)</h3>
+          {mixedTypeError && (
+            <Alert color="failure" icon={HiExclamationCircle} className="mb-2">
+              Die Dateien haben unterschiedliche Typen. Bitte nur PDF, HTML oder Bilder (jeweils nur einen Typ) hochladen.
+            </Alert>
+          )}
+          {detectedDocType && (
+            <p className="text-sm text-gray-600 mb-2">
+              Erkannter Typ:{" "}
+              <Badge color="gray" className="inline-flex">
+                {documentTypeOptions[detectedDocType]}
+              </Badge>
+            </p>
+          )}
           <DropZone
-            files={pdfFiles}
-            onAdd={(f) => void addPdfFiles(f)}
-            onRemove={removePdfFile}
-            accept="application/pdf"
-            placeholder="PDF-Dateien hier ablegen oder klicken zum Auswählen"
+            files={docFiles.map((f) => f.filename)}
+            onAdd={(f) => void addDocFiles(f)}
+            onRemove={removeDocFile}
+            accept=".pdf,.html,.htm,image/*"
+            placeholder="Dokumente hier ablegen oder klicken zum Auswählen (PDF, HTML oder Bilder)"
           />
         </div>
       </div>
@@ -228,3 +280,4 @@ export const CsvUploadPage = () => {
 };
 
 export default CsvUploadPage;
+

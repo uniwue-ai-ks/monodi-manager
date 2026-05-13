@@ -42,6 +42,7 @@ const DOC_POSITION_KEY: Record<DocumentPosition, string> = {
 export function generateTtl(state: AppState): string {
   const doctypes = state.doctypes ?? {};
   const documents = state.documents ?? [];
+  const language = 'de';
 
   const version = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 
@@ -66,19 +67,34 @@ export function generateTtl(state: AppState): string {
     lines.push(`# Class: ${doctypeName}`);
     lines.push(`data:${classSlug}`);
     lines.push(`  a rdfs:Class ;`);
-    lines.push(`  rdfs:label "${escapeTtl(doctypeName)}" ;`);
+    lines.push(`  rdfs:label "${escapeTtl(doctypeName)}"@${language} ;`);
     lines.push(`  :shortUrlTag "${escapeTtl(classSlug)}" .`);
     lines.push("");
 
     let searchOrder = 1;
     let headerOrder = 1;
 
+    // Main document property — always emitted; position order starts at 1
+    const mainDocType = (state.mainDocumentTypes ?? {})[doctypeName] ?? "pdf";
+    const mainDocRange = mainDocType === "pdf" ? ":pdf" : ":htmlContent";
+    const mainDocPropSlug = `${classSlug}Document`;
+
+    lines.push(`data:${mainDocPropSlug}`);
+    lines.push(`  a rdf:Property ;`);
+    lines.push(`  rdfs:label "Dokument"@${language} ;`);
+    lines.push(`  rdfs:domain data:${classSlug} ;`);
+    lines.push(`  rdfs:range ${mainDocRange} ;`);
+    lines.push(`  :documentPosition [ :main 1 ] .`);
+    lines.push("");
+
+    // Attribute positions start at 2 to leave room above the main document
+
     for (const field of fields) {
       const propSlug = classSlug + toSlug(field.name).replace(/^./, (c) => c.toUpperCase());
 
       lines.push(`data:${propSlug}`);
       lines.push(`  a rdf:Property ;`);
-      lines.push(`  rdfs:label "${escapeTtl(field.displayName || field.name)}" ;`);
+      lines.push(`  rdfs:label "${escapeTtl(field.displayName || field.name)}"@${language} ;`);
       lines.push(`  rdfs:domain data:${classSlug} ;`);
       lines.push(`  rdfs:range ${field.type} ;`);
 
@@ -123,27 +139,33 @@ export function generateTtl(state: AppState): string {
 
     const triples: string[] = [`  a data:${classSlug}`];
 
+    // Main document triple
+    const mainDocType = (state.mainDocumentTypes ?? {})[doc.doctype] ?? "pdf";
+    const mainDocPropSlug = classSlug + "Document";
+    if (mainDocType === "pdf") {
+      const pdfPath = `${doc.doctype}/${doc.filename}`;
+      triples.push(`  data:${mainDocPropSlug} "${escapeTtl(pdfPath)}"`);
+    } else {
+      // HTML and image: content stored in mainDocumentContent
+      const content = doc.mainDocumentContent ?? "";
+      triples.push(`  data:${mainDocPropSlug} "${escapeTtl(content)}"`);
+    }
+
     for (const field of fields) {
       const propSlug = classSlug + toSlug(field.name).replace(/^./, (c) => c.toUpperCase());
 
-      if (field.type === ":pdf") {
-        // PDF path as referenced by Monodi: <DoctypeName>/<filename>
-        const pdfPath = `${doc.doctype}/${doc.filename}`;
-        triples.push(`  data:${propSlug} "${escapeTtl(pdfPath)}"`);
-      } else {
-        const value = doc.values[field.name];
-        if (value !== undefined && value !== "") {
-          if (field.type === ":number") {
-            if (/^-?\d+$/.test(value)) {
-              triples.push(`  data:${propSlug} "${value}"^^xsd:integer`);
-            } else {
-              triples.push(`  data:${propSlug} "${escapeTtl(value)}"^^xsd:decimal`);
-            }
-          } else if (field.type === ":boolean") {
-            triples.push(`  data:${propSlug} "${value === "true" ? "true" : "false"}"`);
+      const value = doc.values[field.name];
+      if (value !== undefined && value !== "") {
+        if (field.type === ":number") {
+          if (/^-?\d+$/.test(value)) {
+            triples.push(`  data:${propSlug} "${value}"^^xsd:integer`);
           } else {
-            triples.push(`  data:${propSlug} "${escapeTtl(value)}"`);
+            triples.push(`  data:${propSlug} "${escapeTtl(value)}"^^xsd:decimal`);
           }
+        } else if (field.type === ":boolean") {
+          triples.push(`  data:${propSlug} "${value === "true" ? "true" : "false"}"`);
+        } else {
+          triples.push(`  data:${propSlug} "${escapeTtl(value)}"`);
         }
       }
     }

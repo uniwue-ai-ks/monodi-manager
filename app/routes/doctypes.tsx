@@ -22,7 +22,7 @@ export const DoctypeNamesPage = () => {
       data.docTypeNames.map(({name}) => [name, doctypes[name] ?? []])
     )
     storage.patchContents({ doctypes: newDoctypes });
-    navigate(`/doctypeFields/${data.docTypeNames[0].name}`)
+    navigate(`/upload`);
   };
   return <DoctypeNames onSubmit={onSubmit} onBack={() => { navigate("/") }} names={names} />;
 }

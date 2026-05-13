@@ -1,5 +1,5 @@
 import useLocalStorageState from "use-local-storage-state";
-import type { DoctypeField, Doctypes } from "~/state";
+import type { DocumentType, DoctypeField, Doctypes } from "~/state";
 
 const KEY = 'createDocFlow_v1';
 
@@ -20,6 +20,8 @@ export type DocumentEntry = {
   filename: string;
   doctype: string;
   values: Record<string, string>;
+  /** Extracted HTML body content (HTML/image documents); undefined for PDF. */
+  mainDocumentContent?: string;
 };
 
 export type AppState = {
@@ -28,4 +30,6 @@ export type AppState = {
   doctypes?: Doctypes;
   documents?: DocumentEntry[];
   workflow?: "csv";
+  /** Main document type per doctype name. */
+  mainDocumentTypes?: Record<string, DocumentType>;
 };

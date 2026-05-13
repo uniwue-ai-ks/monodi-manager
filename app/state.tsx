@@ -3,11 +3,18 @@ export const typeOptions = {
   ":htmlContent": "Formatierter Text (HTML)",
   ":number": "Zahl",
   ":boolean": "Ja/Nein",
-  ":pdf": "PDF-Datei",
   ":category": "Kategorisch",
 } as const;
 
 export type FieldType = keyof typeof typeOptions;
+
+export type DocumentType = "pdf" | "html" | "image";
+
+export const documentTypeOptions: Record<DocumentType, string> = {
+  pdf: "PDF",
+  html: "HTML",
+  image: "Bild",
+};
 
 export type DocumentPosition = ":main" | ":header" | ":right" | ":download" | ":sticky";
 

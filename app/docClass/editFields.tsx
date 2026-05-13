@@ -3,11 +3,12 @@ import * as fb from "flowbite-react";
 import { Controller, FormProvider, useForm, useFormContext, type FieldArray, type FieldArrayPath, type FieldValues } from "react-hook-form";
 import { CardSection, CardTitle } from "~/components/card";
 import { MultiSubForm, type MultiSubFormChildProps } from "~/components/MultiSubForm";
-import { typeOptions, type DoctypeField, type FieldType } from "~/state";
+import { typeOptions, documentTypeOptions, type DoctypeField, type FieldType, type DocumentType } from "~/state";
 import { FormCard, Info, InfoPlaceholder, Input, LabelGrid, Select, Toggle } from "../components/forms";
 import { DisplayLocationSelector } from "./DisplayLocationSelector";
 
 export type FieldsFormdata = {
+  mainDocumentType: DocumentType;
   fields: DoctypeField[];
 }
 
@@ -19,13 +20,18 @@ type DoctypeFieldsProps = {
   onSubmit: (data: FieldsFormdata) => void;
   onBack?: () => void;
   initialFields: DoctypeField[];
+  initialMainDocumentType?: DocumentType;
+  /** Whether HTML is available as a document type option (true if HTML files were uploaded). */
+  allowHtml?: boolean;
   doctypeName: string;
   isFinal: boolean;
 }
 
-export const DoctypeFields = ({ onSubmit, onBack, initialFields, doctypeName, isFinal }: DoctypeFieldsProps) => {
+export const DoctypeFields = ({ onSubmit, onBack, initialFields, initialMainDocumentType, allowHtml, doctypeName, isFinal }: DoctypeFieldsProps) => {
   const normalized = initialFields.map(f => ({ useSeparator: false, searchable: false, showInResults: false, ...f }));
-  const methods = useForm<FieldsFormdata>({ defaultValues: { fields: normalized } });
+  const methods = useForm<FieldsFormdata>({
+    defaultValues: { mainDocumentType: initialMainDocumentType ?? "pdf", fields: normalized },
+  });
 
   return <FormProvider {...methods}>
     <FormCard next={isFinal ? "nächster Schritt" : "nächster Dokumententyp"} onSubmit={onSubmit} onBack={onBack}>
@@ -33,6 +39,15 @@ export const DoctypeFields = ({ onSubmit, onBack, initialFields, doctypeName, is
       <p>
         Als nächstes definieren Sie die Merkmale, die je Dokument gespeichert werden sollen. Diese enthalten sowohl den eigentlichen Inhalt des Dokuments als auch Metadaten, nach denen die Dokumente durchsucht werden können.
       </p>
+      <CardSection heading="Hauptdokument">
+        <LabelGrid>
+          <Select {...methods.register("mainDocumentType")} label="Dokumenttyp">
+            <option value="pdf">{documentTypeOptions.pdf}</option>
+            <option value="image">{documentTypeOptions.image}</option>
+            {allowHtml && <option value="html">{documentTypeOptions.html}</option>}
+          </Select>
+        </LabelGrid>
+      </CardSection>
       <CardSection heading={<>Felder für Typ <em>{doctypeName}</em></>}>
         <MultiSubForm name="fields" addText="Feld hinzufügen" empty={{ name: "", type: ":string" }}>{
           (props) =>
@@ -58,37 +73,28 @@ const FieldForm = ({ index }: MultiSubFormChildProps): ReactNode => {
     </Select>
     <TypeSpecificSettings selectedType={selectedType} index={index} />
 
-    {selectedType != ":pdf" ?
-      [<Toggle name={`fields.${index}.searchable`} label="Durchsuchbar" />, <span />]
-      : undefined
-    }
+    <Toggle name={`fields.${index}.searchable`} label="Durchsuchbar" />
+    <span />
 
-    {selectedType != ":pdf" ?
-      [<Toggle name={`fields.${index}.showInResults`} label="In Suche anzeigen" />, <span />]
-      : undefined
-    }
+    <Toggle name={`fields.${index}.showInResults`} label="In Suche anzeigen" />
+    <span />
 
-    {selectedType != ":pdf" ?
-      [
-        <label>Kürzen in Ergebnissen</label>,
-        <Controller
-          name={`fields.${index}.shortenIn`}
-          control={control}
-          render={({ field }) => (
-            <fb.ToggleSwitch
-              checked={Array.isArray(field.value) && (field.value as string[]).includes(":results")}
-              onChange={(checked) => field.onChange(checked ? [":results"] : [])}
-            />
-          )}
-        />,
-        <span />
-      ]
-      : undefined
-    }
+    <label>Kürzen in Ergebnissen</label>
+    <Controller
+      name={`fields.${index}.shortenIn`}
+      control={control}
+      render={({ field }) => (
+        <fb.ToggleSwitch
+          checked={Array.isArray(field.value) && (field.value as string[]).includes(":results")}
+          onChange={(checked) => field.onChange(checked ? [":results"] : [])}
+        />
+      )}
+    />
+    <span />
 
     <label htmlFor={`fields.${index}.documentPositions`}>Dokumentenansicht</label>
     <Controller name={`fields.${index}.documentPositions`} control={control} render={({ field }) => {
-      return <DisplayLocationSelector {...field} downloadable={selectedType == ":pdf"} />
+      return <DisplayLocationSelector {...field} downloadable={false} />
     }} />
   </LabelGrid>
 }

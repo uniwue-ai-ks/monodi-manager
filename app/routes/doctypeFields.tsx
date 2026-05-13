@@ -7,7 +7,7 @@ import type { Route } from "./+types/doctypeFields";
 export const meta = ({ }: Route.MetaArgs) => {
   return [
     { title: "Bearbeite Dokumententyp" },
-    { name: "description", content: "Schritt 2: Dokumenteigenschaften festlegen" },
+    { name: "description", content: "Schritt 3: Dokumenteigenschaften festlegen" },
   ];
 }
 
@@ -21,6 +21,10 @@ export const DoctypeFieldsPage = ({ params }: Route.ComponentProps) => {
 
   const doctypeFields = doctypes[params.name]
 
+  // Detect whether HTML was uploaded for this doctype
+  const mainDocumentType = (storage.contents.mainDocumentTypes ?? {})[params.name]
+  const allowHtml = mainDocumentType === "html"
+
   useEffect(() => {
     if (doctypes[params.name] === undefined || Object.keys(doctypes).length === 0) {
       console.warn(`No doctype with name ${params.name}`)
@@ -29,26 +33,32 @@ export const DoctypeFieldsPage = ({ params }: Route.ComponentProps) => {
   }, [navigate])
 
   const next = nextName === undefined
-    ? (isCsvWorkflow ? null : "/upload")
+    ? "/enterData"
     : `/doctypeFields/${nextName}`
 
   const onSubmit = (fieldsData: FieldsFormdata) => {
     const existing = storage.contents
     const newDoctypes = { ...existing.doctypes }
     newDoctypes[params.name] = fieldsData.fields;
-    storage.patchContents({ doctypes: newDoctypes })
+    const newMainDocTypes = {
+      ...(existing.mainDocumentTypes ?? {}),
+      [params.name]: fieldsData.mainDocumentType,
+    };
+    storage.patchContents({ doctypes: newDoctypes, mainDocumentTypes: newMainDocTypes })
     if (nextName === undefined && isCsvWorkflow) {
       navigate("/enterData", { state: { uploadSkipped: true } })
     } else {
-      navigate(next!)
+      navigate(next)
     }
   }
 
   return <DoctypeFields
     onSubmit={onSubmit}
-    onBack={() => navigate(isCsvWorkflow ? "/csvUpload" : "/doctypes")}
+    onBack={() => navigate(isCsvWorkflow ? "/csvUpload" : "/upload")}
     doctypeName={params.name}
     initialFields={doctypeFields}
+    initialMainDocumentType={mainDocumentType}
+    allowHtml={allowHtml}
     isFinal={nextName === undefined} />;
 }
 export default DoctypeFieldsPage;
