@@ -49,6 +49,9 @@ const FieldForm = ({ index }: MultiSubFormChildProps): ReactNode => {
     <Input {...register(`fields.${index}.name`)} label="Name" />
     <InfoPlaceholder />
 
+    <Input {...register(`fields.${index}.displayName`)} label="Anzeigename (optional)" />
+    <Info content="Wird als RDF-Label verwendet. Leer lassen, um den Namen zu verwenden." />
+
     <Select {...register(`fields.${index}.type`)} label="Typ">
       {Object.entries(typeOptions).map(([key, value]) => <option key={key} value={key}>{value}</option>)}
     </Select>

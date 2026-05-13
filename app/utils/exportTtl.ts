@@ -78,7 +78,7 @@ export function generateTtl(state: AppState): string {
 
       lines.push(`data:${propSlug}`);
       lines.push(`  a rdf:Property ;`);
-      lines.push(`  rdfs:label "${escapeTtl(field.name)}" ;`);
+      lines.push(`  rdfs:label "${escapeTtl(field.displayName || field.name)}" ;`);
       lines.push(`  rdfs:domain data:${classSlug} ;`);
       lines.push(`  rdfs:range ${field.type} ;`);
 

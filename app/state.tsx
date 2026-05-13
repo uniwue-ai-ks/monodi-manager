@@ -13,6 +13,8 @@ export type DocumentPosition = ":main" | ":header" | ":right" | ":download" | ":
 
 export type DoctypeField = {
   name: string;
+  /** Optional display name used as rdfs:label; falls back to `name` if absent. */
+  displayName?: string;
   type: FieldType;
   useSeparator?: boolean;
   searchable?: boolean;
