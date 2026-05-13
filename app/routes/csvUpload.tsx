@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { Alert, Badge, Button, Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from "flowbite-react";
-import { HiExclamationCircle } from "react-icons/hi2";
+import { Alert, Badge, Button, Checkbox, Label, Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from "flowbite-react";
+import { HiExclamationCircle, HiExclamationTriangle } from "react-icons/hi2";
 import { Card, CardTitle } from "~/components/card";
 import { DropZone } from "~/components/DropZone";
 import { useAppState } from "~/utils/flowStorage";
@@ -31,6 +31,20 @@ export const CsvUploadPage = () => {
   const [parseResult, setParseResult] = useState<CsvSchemaResult | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
   const [pdfFiles, setPdfFiles] = useState<string[]>([]);
+  const [ignoreDuplicates, setIgnoreDuplicates] = useState(false);
+
+  const parseCsv = (text: string, ignore: boolean) => {
+    const result = inferSchemaFromCsv(text, DEFAULT_DOCTYPE, { ignoreDuplicateFilenames: ignore });
+    if (result.ok) {
+      setParseResult(result.result);
+      setParseError(null);
+    } else {
+      setParseResult(null);
+      setParseError(csvSchemaErrorMessage(result.error));
+    }
+  };
+
+  const [lastCsvText, setLastCsvText] = useState<string | null>(null);
 
   const handleCsvUpload = (files: FileList | null) => {
     const file = files?.[0];
@@ -38,16 +52,9 @@ export const CsvUploadPage = () => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
-      const result = inferSchemaFromCsv(text, DEFAULT_DOCTYPE);
-      if (result.ok) {
-        setParseResult(result.result);
-        setParseError(null);
-        setCsvFilename(file.name);
-      } else {
-        setParseResult(null);
-        setParseError(csvSchemaErrorMessage(result.error));
-        setCsvFilename(file.name);
-      }
+      setLastCsvText(text);
+      setCsvFilename(file.name);
+      parseCsv(text, ignoreDuplicates);
     };
     reader.onerror = () => {
       setParseError("Datei konnte nicht gelesen werden.");
@@ -59,6 +66,7 @@ export const CsvUploadPage = () => {
     setCsvFilename(null);
     setParseResult(null);
     setParseError(null);
+    setLastCsvText(null);
   };
 
   const addPdfFiles = async (files: FileList | null) => {
@@ -119,13 +127,54 @@ export const CsvUploadPage = () => {
         </div>
 
         {parseError && (
-          <Alert color="failure" icon={HiExclamationCircle}>
-            {parseError}
-          </Alert>
+          <>
+            <Alert color="failure" icon={HiExclamationCircle}>
+              {parseError}
+            </Alert>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="ignoreDuplicates"
+                checked={ignoreDuplicates}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setIgnoreDuplicates(checked);
+                  if (lastCsvText) parseCsv(lastCsvText, checked);
+                }}
+              />
+              <Label htmlFor="ignoreDuplicates">
+                Doppelte Dateinamen ignorieren (nur erste Zeile wird verwendet)
+              </Label>
+            </div>
+          </>
+        )}
+
+        {!parseError && lastCsvText && (
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="ignoreDuplicates"
+              checked={ignoreDuplicates}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setIgnoreDuplicates(checked);
+                if (lastCsvText) parseCsv(lastCsvText, checked);
+              }}
+            />
+            <Label htmlFor="ignoreDuplicates">
+              Doppelte Dateinamen ignorieren (nur erste Zeile wird verwendet)
+            </Label>
+          </div>
         )}
 
         {parseResult && (
           <div className="space-y-2">
+            {parseResult.ignoredDuplicateFilenames && parseResult.ignoredDuplicateFilenames.length > 0 && (
+              <Alert color="warning" icon={HiExclamationTriangle}>
+                <strong>{parseResult.ignoredDuplicateFilenames.length} doppelte {parseResult.ignoredDuplicateFilenames.length === 1 ? "Dateiname wurde" : "Dateinamen wurden"} ignoriert</strong>
+                {" "}– nur die erste Zeile je Dateiname wird verwendet:{" "}
+                {parseResult.ignoredDuplicateFilenames.slice(0, 5).map((f) => `"${f}"`).join(", ")}
+                {parseResult.ignoredDuplicateFilenames.length > 5 && ` (und ${parseResult.ignoredDuplicateFilenames.length - 5} weitere)`}.
+              </Alert>
+            )}
             <p className="text-sm text-gray-600">
               <strong>{parseResult.documents.length}</strong> Zeilen erkannt · Dateiname-Spalte:{" "}
               <code>{parseResult.filenameColumnName}</code>

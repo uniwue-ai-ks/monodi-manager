@@ -37,13 +37,18 @@ export type CsvSchemaResult = {
   fields: DoctypeField[];
   documents: DocumentEntry[];
   filenameColumnName: string;
+  ignoredDuplicateFilenames?: string[];
 };
 
 export type CsvSchemaInferResult =
   | { ok: true; result: CsvSchemaResult }
   | { ok: false; error: CsvSchemaError };
 
-export function inferSchemaFromCsv(rawCsv: string, doctypeName: string): CsvSchemaInferResult {
+export function inferSchemaFromCsv(
+  rawCsv: string,
+  doctypeName: string,
+  options?: { ignoreDuplicateFilenames?: boolean }
+): CsvSchemaInferResult {
   // Strip UTF-8 BOM if present
   const csvText = rawCsv.startsWith("\uFEFF") ? rawCsv.slice(1) : rawCsv;
 
@@ -88,9 +93,22 @@ export function inferSchemaFromCsv(rawCsv: string, doctypeName: string): CsvSche
   const dupFilenames = [...filenameCounts.entries()]
     .filter(([, count]) => count > 1)
     .map(([f]) => f);
-  if (dupFilenames.length > 0) {
+  if (dupFilenames.length > 0 && !options?.ignoreDuplicateFilenames) {
     return { ok: false, error: { type: "duplicate_filenames", filenames: dupFilenames } };
   }
+
+  // When ignoring duplicates, keep only the first occurrence of each filename
+  const dupFilenameSet = new Set(dupFilenames);
+  const seenFilenames = new Set<string>();
+  const effectiveDataRows = dupFilenames.length > 0
+    ? dataRows.filter((row) => {
+        const f = (row[filenameColIdx] ?? "").trim();
+        if (!f || !dupFilenameSet.has(f)) return true;
+        if (seenFilenames.has(f)) return false;
+        seenFilenames.add(f);
+        return true;
+      })
+    : dataRows;
 
   // Build fields for non-filename columns
   const fields: DoctypeField[] = [];
@@ -99,13 +117,13 @@ export function inferSchemaFromCsv(rawCsv: string, doctypeName: string): CsvSche
     if (i === filenameColIdx) continue;
     const name = headerCells[i];
     if (!name) continue;
-    const colValues = dataRows.map((row) => row[i] ?? "");
+    const colValues = effectiveDataRows.map((row) => row[i] ?? "");
     fields.push({ name, type: inferFieldType(colValues) });
     fieldColIndices.push(i);
   }
 
   // Build DocumentEntry list
-  const documents: DocumentEntry[] = dataRows
+  const documents: DocumentEntry[] = effectiveDataRows
     .map((row) => {
       const filename = (row[filenameColIdx] ?? "").trim();
       if (!filename) return null;
@@ -130,7 +148,15 @@ export function inferSchemaFromCsv(rawCsv: string, doctypeName: string): CsvSche
     })
     .filter((d): d is DocumentEntry => d !== null);
 
-  return { ok: true, result: { fields, documents, filenameColumnName } };
+  return {
+    ok: true,
+    result: {
+      fields,
+      documents,
+      filenameColumnName,
+      ...(dupFilenames.length > 0 ? { ignoredDuplicateFilenames: dupFilenames } : {}),
+    },
+  };
 }
 
 export function csvSchemaErrorMessage(error: CsvSchemaError): string {
