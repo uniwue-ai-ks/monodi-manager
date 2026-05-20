@@ -1,87 +1,116 @@
-# Welcome to React Router!
+# Monodi Generator
 
-A modern, production-ready template for building full-stack React applications using React Router.
+A web application for generating RDF/Turtle data for the Monodi viewer. It guides users through a multi-step workflow: defining document types, uploading documents, entering metadata, and exporting the resulting RDF.
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/remix-run/react-router-templates/tree/main/default)
+The project consists of two packages:
 
-## Features
+- **root** — React SPA (React Router v7, Vite, TailwindCSS)
+- **backend** — Express server that stores uploaded files and deployed RDF, and serves the frontend in production
 
-- 🚀 Server-side rendering
-- ⚡️ Hot Module Replacement (HMR)
-- 📦 Asset bundling and optimization
-- 🔄 Data loading and mutations
-- 🔒 TypeScript by default
-- 🎉 TailwindCSS for styling
-- 📖 [React Router docs](https://reactrouter.com/)
+## Prerequisites
 
-## Getting Started
+- Node.js 20.x
+- [pnpm](https://pnpm.io/) (the lockfile is pnpm-based; do not use npm or yarn)
 
-### Installation
+## Local Development
 
-Install the dependencies:
+### 1. Install dependencies
 
 ```bash
-npm install
+pnpm install
 ```
 
-### Development
-
-Start the development server with HMR:
+### 2. Start the frontend dev server
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
-Your application will be available at `http://localhost:5173`.
+The app is available at <http://localhost:5173> with hot module replacement. In this mode the backend is not involved; API calls will fail gracefully (file uploads and deploys are logged to the browser console but do not block the UI).
+
+### 3. Run the backend alongside the frontend (optional)
+
+If you want to test the full stack locally, run the backend in a second terminal:
+
+```bash
+# In a second terminal
+cd backend
+MONODI_RESOURCE_DIR=/tmp/monodi/resources \
+MONODI_RDF_DIR=/tmp/monodi/rdf \
+MONODI_MANAGE_PASSWORD=secret \
+pnpm run dev
+```
+
+The backend starts on port 3000 by default (override with `PORT=...`). The frontend dev server proxies nothing automatically, so backend calls from the dev frontend will hit `localhost:3000` only if the browser is pointed there. For full integration testing, build the frontend first (see below) and let the backend serve it.
+
+#### Backend environment variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `MONODI_RESOURCE_DIR` | ✅ | Root directory for uploaded documents. PDFs are stored in `<dir>/pdf/`, all other files in `<dir>/docs/`. |
+| `MONODI_RDF_DIR` | ✅ | Directory where `data.ttl` and timestamped state snapshots are written on deploy. |
+| `MONODI_MANAGE_PASSWORD` | ✅ | Password for HTTP Basic Auth (required on every API request). The username is ignored. |
+| `PORT` | – | Port the backend listens on. Defaults to `3000`. |
+
+The backend exits immediately on startup if any required variable is unset.
 
 ## Building for Production
 
-Create a production build:
+Build the frontend:
 
 ```bash
-npm run build
+pnpm run build
 ```
 
-## Deployment
-
-### Docker Deployment
-
-To build and run using Docker:
+Build the backend:
 
 ```bash
-docker build -t my-app .
-
-# Run the container
-docker run -p 3000:3000 my-app
+cd backend && pnpm run build
 ```
 
-The containerized application can be deployed to any platform that supports Docker, including:
+Then start the backend (which also serves the compiled frontend):
 
-- AWS ECS
-- Google Cloud Run
-- Azure Container Apps
-- Digital Ocean App Platform
-- Fly.io
-- Railway
-
-### DIY Deployment
-
-If you're familiar with deploying Node applications, the built-in app server is production-ready.
-
-Make sure to deploy the output of `npm run build`
-
-```
-├── package.json
-├── package-lock.json (or pnpm-lock.yaml, or bun.lockb)
-├── build/
-│   ├── client/    # Static assets
-│   └── server/    # Server-side code
+```bash
+cd backend
+MONODI_RESOURCE_DIR=/path/to/resources \
+MONODI_RDF_DIR=/path/to/rdf \
+MONODI_MANAGE_PASSWORD=changeme \
+pnpm run start
 ```
 
-## Styling
+The application is available at <http://localhost:3000>.
 
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever CSS framework you prefer.
+## Type-checking
 
----
+```bash
+pnpm run typecheck          # frontend (root package)
+cd backend && npx tsc --noEmit  # backend
+```
 
-Built with ❤️ using React Router.
+## Container Deployment
+
+Build and run with Docker or Podman:
+
+```bash
+docker build -t monodi-generator .
+
+docker run -p 3000:3000 \
+  -e MONODI_RESOURCE_DIR=/data/resources \
+  -e MONODI_RDF_DIR=/data/rdf \
+  -e MONODI_MANAGE_PASSWORD=changeme \
+  -v /host/data:/data \
+  monodi-generator
+```
+
+The Containerfile uses a multi-stage build (frontend → backend → slim Node.js runtime) so no Caddy or separate static server is needed.
+
+## API Routes
+
+All routes require HTTP Basic Auth with the configured password.
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/files` | Upload documents (multipart `files` field). PDFs → `MONODI_RESOURCE_DIR/pdf/`, others → `MONODI_RESOURCE_DIR/docs/`. |
+| `POST` | `/api/deploy` | JSON body `{ ttl, state }`. Writes `data.ttl` and a timestamped `state_<datetime>.json` to `MONODI_RDF_DIR`. |
+| `GET` | `/*` | Serves the compiled React frontend with SPA fallback. |
+

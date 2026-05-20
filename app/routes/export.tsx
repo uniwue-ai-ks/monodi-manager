@@ -1,6 +1,7 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router";
-import { Button } from "flowbite-react";
+import { Alert, Button } from "flowbite-react";
+import { HiCheckCircle, HiExclamationCircle } from "react-icons/hi2";
 import { Card, CardTitle } from "~/components/card";
 import { useAppState } from "~/utils/flowStorage";
 import { generateTtl } from "~/utils/exportTtl";
@@ -23,6 +24,8 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+type DeployStatus = "idle" | "loading" | "success" | "error";
+
 export const ExportPage = () => {
   const navigate = useNavigate();
   const storage = useAppState();
@@ -30,10 +33,33 @@ export const ExportPage = () => {
   const ttl = generateTtl(state);
   const documentCount = state.documents?.length ?? 0;
 
+  const [deployStatus, setDeployStatus] = useState<DeployStatus>("idle");
+  const [deployError, setDeployError] = useState<string>("");
+
   const handleDownloadTtl = useCallback(() => {
     const blob = new Blob([ttl], { type: "text/turtle;charset=utf-8" });
     downloadBlob(blob, "data.ttl");
   }, [ttl]);
+
+  const handleDeploy = useCallback(async () => {
+    setDeployStatus("loading");
+    setDeployError("");
+    try {
+      const res = await fetch("/api/deploy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ttl, state }),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Server returned ${res.status}: ${text}`);
+      }
+      setDeployStatus("success");
+    } catch (err) {
+      setDeployError(err instanceof Error ? err.message : String(err));
+      setDeployStatus("error");
+    }
+  }, [ttl, state]);
 
   return (
     <Card className="pb-4 max-w-3xl w-full space-y-6">
@@ -54,12 +80,38 @@ export const ExportPage = () => {
         </pre>
       </div>
 
-      {/* TTL download */}
-      <div className="flex items-center gap-4">
-        <Button onClick={handleDownloadTtl}>
-          data.ttl herunterladen
-        </Button>
-        <p className="text-sm text-gray-500">Die RDF-Datei enthaelt die Referenzen auf Ihre PDFs.</p>
+      {/* Actions */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          <Button onClick={handleDownloadTtl}>
+            data.ttl herunterladen
+          </Button>
+          <p className="text-sm text-gray-500">Die RDF-Datei enthaelt die Referenzen auf Ihre PDFs.</p>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <Button
+            color="success"
+            onClick={() => void handleDeploy()}
+            disabled={deployStatus === "loading"}
+          >
+            {deployStatus === "loading" ? "Wird deployed…" : "Deploy"}
+          </Button>
+          <p className="text-sm text-gray-500">
+            RDF und aktuellen Stand auf dem Server speichern.
+          </p>
+        </div>
+
+        {deployStatus === "success" && (
+          <Alert color="success" icon={HiCheckCircle}>
+            Erfolgreich deployed.
+          </Alert>
+        )}
+        {deployStatus === "error" && (
+          <Alert color="failure" icon={HiExclamationCircle}>
+            Deploy fehlgeschlagen: {deployError}
+          </Alert>
+        )}
       </div>
 
       <hr className="text-gray-300" />

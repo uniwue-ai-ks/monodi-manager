@@ -15,6 +15,22 @@ import {
 import { documentTypeOptions, type DocumentType } from "~/state";
 import type { Route } from "./+types/upload";
 
+/** Upload raw files to the backend for server-side storage. Non-blocking. */
+async function uploadFilesToServer(files: FileList): Promise<void> {
+  try {
+    const formData = new FormData();
+    for (const file of Array.from(files)) {
+      formData.append("files", file);
+    }
+    const res = await fetch("/api/files", { method: "POST", body: formData });
+    if (!res.ok) {
+      console.error("Server file upload failed:", res.status, await res.text());
+    }
+  } catch (err) {
+    console.error("Server file upload error:", err);
+  }
+}
+
 export const meta = ({}: Route.MetaArgs) => {
   return [
     { title: "Dokumente hinzufügen" },
@@ -54,6 +70,7 @@ export const DocumentUploadPage = () => {
       [doctype]: mergeDocFiles(prev[doctype] ?? [], read),
     }));
     setTypeByDoctype((prev) => ({ ...prev, [doctype]: detected }));
+    void uploadFilesToServer(newFiles);
   };
 
   const removeFile = (doctype: string, filename: string) => {
