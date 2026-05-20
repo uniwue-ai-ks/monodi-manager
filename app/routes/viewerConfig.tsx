@@ -42,7 +42,7 @@ export const ViewerConfigPage = () => {
 
   const onSubmit = (data: FrontmatterData) => {
     storage.patchContents({ frontmatter: data });
-    navigate("/step5");
+    navigate("/export");
   };
 
   return (

@@ -1,6 +1,5 @@
-import type { AppState } from "~/utils/flowStorage";
-import type { FrontmatterData } from "~/utils/flowStorage";
-import type { DoctypeField, DocumentPosition } from "~/state";
+import type { AppState, FrontmatterData } from "~/utils/flowStorage";
+import type { DoctypeField, DocumentEntry, DocumentPosition } from "~/state";
 
 const MONODI_NS = "http://olyro.de/mondiview/";
 const DATA_NS = "http://monodicum/";
@@ -73,8 +72,7 @@ const DOC_POSITION_KEY: Record<DocumentPosition, string> = {
 };
 
 export function generateTtl(state: AppState): string {
-  const doctypes = state.doctypes ?? {};
-  const documents = state.documents ?? [];
+  const doctypes = state.doctypes ?? [];
   const language = 'de';
 
   const version = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -99,7 +97,9 @@ export function generateTtl(state: AppState): string {
 
   // ---------- schema ----------
 
-  for (const [doctypeName, fields] of Object.entries(doctypes)) {
+  for (const doctypeEntry of doctypes) {
+    const doctypeName = doctypeEntry.name;
+    const fields = doctypeEntry.fields;
     const classSlug = toSlug(doctypeName);
 
     lines.push(`# Class: ${doctypeName}`);
@@ -113,7 +113,7 @@ export function generateTtl(state: AppState): string {
     let headerOrder = 1;
 
     // Main document property — always emitted; position order starts at 1
-    const mainDocType = (state.mainDocumentTypes ?? {})[doctypeName] ?? "pdf";
+    const mainDocType = doctypeEntry.mainDocumentType ?? "pdf";
     const mainDocRange = mainDocType === "pdf" ? ":pdf" : ":htmlContent";
     const mainDocPropSlug = `${classSlug}Document`;
 
@@ -170,49 +170,53 @@ export function generateTtl(state: AppState): string {
   lines.push("# Instance data");
   lines.push("");
 
-  for (const doc of documents) {
-    const classSlug = toSlug(doc.doctype);
-    const instanceSlug = `${classSlug}_${fileSlug(doc.filename)}`;
-    const fields: DoctypeField[] = (doctypes[doc.doctype] ?? []);
-
-    const triples: string[] = [`  a data:${classSlug}`];
-
-    // Main document triple
-    const mainDocType = (state.mainDocumentTypes ?? {})[doc.doctype] ?? "pdf";
+  for (const doctypeEntry of doctypes) {
+    const doctypeName = doctypeEntry.name;
+    const fields = doctypeEntry.fields;
+    const classSlug = toSlug(doctypeName);
+    const mainDocType = doctypeEntry.mainDocumentType ?? "pdf";
     const mainDocPropSlug = classSlug + "Document";
-    if (mainDocType === "pdf") {
-      const pdfPath = `${doc.doctype}/${doc.filename}`;
-      triples.push(`  data:${mainDocPropSlug} "${escapeTtl(pdfPath)}"`);
-    } else {
-      // HTML and image: content stored in mainDocumentContent
-      const content = doc.mainDocumentContent ?? "";
-      triples.push(`  data:${mainDocPropSlug} "${escapeTtl(content)}"`);
-    }
 
-    for (const field of fields) {
-      const propSlug = classSlug + toSlug(field.name).replace(/^./, (c) => c.toUpperCase());
+    for (const doc of doctypeEntry.documents) {
+      const instanceSlug = `${classSlug}_${fileSlug(doc.filename)}`;
 
-      const value = doc.values[field.name];
-      if (value !== undefined && value !== "") {
-        if (field.type === ":number") {
-          if (/^-?\d+$/.test(value)) {
-            triples.push(`  data:${propSlug} "${value}"^^xsd:integer`);
+      const triples: string[] = [`  a data:${classSlug}`];
+
+      // Main document triple
+      if (mainDocType === "pdf") {
+        const pdfPath = `${doctypeName}/${doc.filename}`;
+        triples.push(`  data:${mainDocPropSlug} "${escapeTtl(pdfPath)}"`);
+      } else {
+        // HTML and image: content stored in mainDocumentContent
+        const content = doc.mainDocumentContent ?? "";
+        triples.push(`  data:${mainDocPropSlug} "${escapeTtl(content)}"`);
+      }
+
+      for (const field of fields) {
+        const propSlug = classSlug + toSlug(field.name).replace(/^./, (c) => c.toUpperCase());
+
+        const value = doc.values[field.name];
+        if (value !== undefined && value !== "") {
+          if (field.type === ":number") {
+            if (/^-?\d+$/.test(value)) {
+              triples.push(`  data:${propSlug} "${value}"^^xsd:integer`);
+            } else {
+              triples.push(`  data:${propSlug} "${escapeTtl(value)}"^^xsd:decimal`);
+            }
+          } else if (field.type === ":boolean") {
+            triples.push(`  data:${propSlug} "${value === "true" ? "true" : "false"}"`);
           } else {
-            triples.push(`  data:${propSlug} "${escapeTtl(value)}"^^xsd:decimal`);
+            triples.push(`  data:${propSlug} "${escapeTtl(value)}"`);
           }
-        } else if (field.type === ":boolean") {
-          triples.push(`  data:${propSlug} "${value === "true" ? "true" : "false"}"`);
-        } else {
-          triples.push(`  data:${propSlug} "${escapeTtl(value)}"`);
         }
       }
-    }
 
-    lines.push(`data:${instanceSlug}`);
-    for (let i = 0; i < triples.length; i++) {
-      lines.push(triples[i] + (i < triples.length - 1 ? " ;" : " ."));
+      lines.push(`data:${instanceSlug}`);
+      for (let i = 0; i < triples.length; i++) {
+        lines.push(triples[i] + (i < triples.length - 1 ? " ;" : " ."));
+      }
+      lines.push("");
     }
-    lines.push("");
   }
 
   return lines.join("\n");

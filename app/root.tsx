@@ -5,10 +5,13 @@ import {
     Outlet,
     Scripts,
     ScrollRestoration,
+    useMatches,
 } from "react-router";
 
 import type { Route } from "./+types/root";
 import "./app.css";
+import { TopNavBar } from "~/components/TopNavBar";
+import { DoctypeStepsBar } from "~/components/DoctypeStepsBar";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -41,8 +44,26 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   );
 }
 
+const AppLayout = () => {
+  const matches = useMatches();
+  // Detect if we're in a doctype subroute (/:doctype/import|fields|data)
+  const doctypeMatch = matches.find(
+    (m) => m.params && "doctype" in m.params && m.params.doctype !== undefined
+  );
+  const doctypeSlug = doctypeMatch?.params?.doctype as string | undefined;
 
-export default () => { return <Outlet />; }
+  return (
+    <div className="min-h-screen flex flex-col">
+      <TopNavBar />
+      {doctypeSlug && <DoctypeStepsBar doctypeSlug={doctypeSlug} />}
+      <main className="flex-1 flex flex-col items-center py-8 px-4">
+        <Outlet />
+      </main>
+    </div>
+  );
+};
+
+export default AppLayout;
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
   let message = "Oops!";

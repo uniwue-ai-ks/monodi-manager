@@ -33,4 +33,19 @@ export type DoctypeField = {
   shortenIn?: ShortenPosition[];
 }
 
-export type Doctypes = {[name: string]: DoctypeField[] };
+export type DocumentEntry = {
+  filename: string;
+  doctype: string;
+  values: Record<string, string>;
+  /** Extracted HTML body content (HTML/image documents); undefined for PDF. */
+  mainDocumentContent?: string;
+};
+
+export type DoctypeEntry = {
+  name: string;
+  fields: DoctypeField[];
+  documents: DocumentEntry[];
+  mainDocumentType?: DocumentType;
+};
+
+export type Doctypes = DoctypeEntry[];

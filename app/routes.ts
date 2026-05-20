@@ -2,11 +2,9 @@ import { type RouteConfig, index, route } from "@react-router/dev/routes";
 
 export default [
   index("routes/home.tsx"),
-  route("doctypes", "routes/doctypes.tsx"),
-  route("doctypeFields/:name", "routes/doctypeFields.tsx"),
-  route("upload", "routes/upload.tsx"),
-  route("csvUpload", "routes/csvUpload.tsx"),
-  route("enterData", "routes/enterData.tsx"),
-  route("viewerConfig", "routes/viewerConfig.tsx"),
-  route("step5", "routes/export.tsx"),
+  route(":doctype/import", "routes/$doctype.import.tsx"),
+  route(":doctype/fields", "routes/$doctype.fields.tsx"),
+  route(":doctype/data", "routes/$doctype.data.tsx"),
+  route("frontmatter", "routes/viewerConfig.tsx"),
+  route("export", "routes/export.tsx"),
 ] satisfies RouteConfig;

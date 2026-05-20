@@ -31,7 +31,7 @@ export const ExportPage = () => {
   const storage = useAppState();
   const state = storage.contents;
   const ttl = generateTtl(state);
-  const documentCount = state.documents?.length ?? 0;
+  const documentCount = (state.doctypes ?? []).reduce((sum, dt) => sum + dt.documents.length, 0);
 
   const [deployStatus, setDeployStatus] = useState<DeployStatus>("idle");
   const [deployError, setDeployError] = useState<string>("");

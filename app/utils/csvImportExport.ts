@@ -10,6 +10,17 @@ export type ImportResult = {
   warnings: ImportWarnings;
 };
 
+/**
+ * Merge new fields from a CSV into an existing field list.
+ * Existing fields are preserved as-is; fields present in `incoming` but not
+ * in `existing` are appended.
+ */
+export function mergeFields(existing: DoctypeField[], incoming: DoctypeField[]): DoctypeField[] {
+  const existingNames = new Set(existing.map((f) => f.name));
+  const newFields = incoming.filter((f) => !existingNames.has(f.name));
+  return [...existing, ...newFields];
+}
+
 // ─── CSV serialization helpers ───────────────────────────────────────────────
 
 function csvCell(value: string): string {

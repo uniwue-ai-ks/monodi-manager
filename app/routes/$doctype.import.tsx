@@ -1,0 +1,381 @@
+import { useState } from "react";
+import { useNavigate } from "react-router";
+import {
+  Alert,
+  Badge,
+  Button,
+  Checkbox,
+  Label,
+  Radio,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeadCell,
+  TableRow,
+} from "flowbite-react";
+import { HiExclamationCircle, HiExclamationTriangle } from "react-icons/hi2";
+import { Card, CardTitle } from "~/components/card";
+import { DropZone } from "~/components/DropZone";
+import {
+  useAppState,
+  getDoctypeBySlug,
+  updateDoctype,
+} from "~/utils/flowStorage";
+import {
+  detectDocumentType,
+  readDocumentFiles,
+  mergeDocFiles,
+  docFilesToEntries,
+  type UploadedDocFile,
+} from "~/utils/documentUploads";
+import {
+  inferSchemaFromCsv,
+  csvSchemaErrorMessage,
+  type CsvSchemaResult,
+} from "~/utils/csvSchemaInfer";
+import { importFromCsv, mergeFields } from "~/utils/csvImportExport";
+import { documentTypeOptions, typeOptions } from "~/state";
+import type { DocumentType, DocumentEntry } from "~/state";
+import type { Route } from "./+types/$doctype.import";
+
+export const meta = ({}: Route.MetaArgs) => {
+  return [
+    { title: "Import" },
+    { name: "description", content: "Daten importieren" },
+  ];
+};
+
+type ImportMode = "overwrite" | "merge-fields" | "data-only";
+
+export const ImportPage = ({ params }: Route.ComponentProps) => {
+  const navigate = useNavigate();
+  const storage = useAppState();
+  const doctypes = storage.contents.doctypes ?? [];
+  const doctype = getDoctypeBySlug(doctypes, params.doctype);
+
+  const [csvFilename, setCsvFilename] = useState<string | null>(null);
+  const [parseResult, setParseResult] = useState<CsvSchemaResult | null>(null);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [ignoreDuplicates, setIgnoreDuplicates] = useState(false);
+  const [lastCsvText, setLastCsvText] = useState<string | null>(null);
+  const [importMode, setImportMode] = useState<ImportMode>("overwrite");
+
+  const [docFiles, setDocFiles] = useState<UploadedDocFile[]>([]);
+  const [detectedDocType, setDetectedDocType] = useState<DocumentType | null>(null);
+  const [mixedTypeError, setMixedTypeError] = useState(false);
+
+  if (!doctype) {
+    return (
+      <Card>
+        <p className="text-red-600">Dokumententyp „{params.doctype}" nicht gefunden.</p>
+        <Button color="light" onClick={() => navigate("/")}>Zurück zur Übersicht</Button>
+      </Card>
+    );
+  }
+
+  const parseCsv = (text: string, ignore: boolean) => {
+    const result = inferSchemaFromCsv(text, doctype.name, { ignoreDuplicateFilenames: ignore });
+    if (result.ok) {
+      setParseResult(result.result);
+      setParseError(null);
+    } else {
+      setParseResult(null);
+      setParseError(csvSchemaErrorMessage(result.error));
+    }
+  };
+
+  const handleCsvUpload = (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      setLastCsvText(text);
+      setCsvFilename(file.name);
+      parseCsv(text, ignoreDuplicates);
+    };
+    reader.onerror = () => setParseError("Datei konnte nicht gelesen werden.");
+    reader.readAsText(file);
+  };
+
+  const handleCsvRemove = () => {
+    setCsvFilename(null);
+    setParseResult(null);
+    setParseError(null);
+    setLastCsvText(null);
+  };
+
+  const addDocFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const detected = detectDocumentType(Array.from(files));
+    if (!detected) {
+      setMixedTypeError(true);
+      return;
+    }
+    setMixedTypeError(false);
+    const read = await readDocumentFiles(files);
+    if (read.length === 0) return;
+    setDocFiles((prev) => mergeDocFiles(prev, read));
+    setDetectedDocType(detected);
+  };
+
+  const removeDocFile = (name: string) => {
+    setDocFiles((prev) => {
+      const remaining = prev.filter((f) => f.filename !== name);
+      if (remaining.length === 0) setDetectedDocType(null);
+      return remaining;
+    });
+  };
+
+  const handleWeiter = () => {
+    const existingDocs = doctype.documents;
+
+    let newFields = doctype.fields;
+    let newDocs: DocumentEntry[] = existingDocs;
+    let newDocumentType = doctype.mainDocumentType;
+
+    if (parseResult) {
+      if (importMode === "overwrite") {
+        // Replace everything: fields + all documents for this doctype
+        newFields = parseResult.fields;
+        newDocs = parseResult.documents;
+      } else if (importMode === "merge-fields") {
+        // Add new fields, merge document data
+        newFields = mergeFields(doctype.fields, parseResult.fields);
+        const { updated } = importFromCsv(
+          lastCsvText!,
+          existingDocs,
+          newFields,
+          doctype.name
+        );
+        newDocs = updated;
+      } else {
+        // data-only: keep existing fields, only update document data
+        const { updated } = importFromCsv(
+          lastCsvText!,
+          existingDocs,
+          doctype.fields,
+          doctype.name
+        );
+        newDocs = updated;
+      }
+    }
+
+    // Merge document files
+    if (docFiles.length > 0 && detectedDocType) {
+      newDocumentType = detectedDocType;
+      // Merge uploaded files into document entries
+      const merged = docFilesToEntries(docFiles, doctype.name, newDocs);
+      // Fill in any CSV documents that weren't matched by an uploaded file
+      const uploadedFilenames = new Set(docFiles.map((f) => f.filename));
+      newDocs = newDocs.map((doc) => {
+        if (uploadedFilenames.has(doc.filename)) {
+          return merged.find((d) => d.filename === doc.filename) ?? doc;
+        }
+        return doc;
+      });
+      // Add new entries from uploaded files not in the CSV/existing list
+      const existingFilenames = new Set(newDocs.map((d) => d.filename));
+      for (const mergedDoc of merged) {
+        if (!existingFilenames.has(mergedDoc.filename)) {
+          newDocs.push(mergedDoc);
+        }
+      }
+    }
+
+    const updatedDoctypes = updateDoctype(doctypes, params.doctype, {
+      fields: newFields,
+      documents: newDocs,
+      mainDocumentType: newDocumentType,
+    });
+    storage.patchContents({ doctypes: updatedDoctypes });
+    navigate(`/${params.doctype}/fields`);
+  };
+
+  return (
+    <Card className="max-w-200 pb-4 grid grid-cols-3 gap-4">
+      <div className="col-span-3 space-y-4">
+        <CardTitle>Import – {doctype.name}</CardTitle>
+        <p>
+          Laden Sie optional eine CSV-Datei hoch, um Felder und Metadaten zu importieren. Sie können
+          auch ohne CSV direkt zu den Felddefinitionen weitergehen.
+        </p>
+
+        {/* CSV upload */}
+        <div>
+          <h3 className="font-semibold mb-2">1. CSV-Datei (optional)</h3>
+          <p className="text-sm text-gray-500 mb-2">
+            Eine Spalte muss den Namen <code>filename</code>, <code>dateiname</code>,{" "}
+            <code>index</code> oder <code>key</code> tragen.
+          </p>
+          <DropZone
+            files={csvFilename ? [csvFilename] : []}
+            onAdd={handleCsvUpload}
+            onRemove={handleCsvRemove}
+            accept=".csv,text/csv"
+            multiple={false}
+            placeholder="CSV-Datei hier ablegen oder klicken zum Auswählen"
+          />
+        </div>
+
+        {parseError && (
+          <>
+            <Alert color="failure" icon={HiExclamationCircle}>{parseError}</Alert>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="ignoreDuplicates"
+                checked={ignoreDuplicates}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setIgnoreDuplicates(checked);
+                  if (lastCsvText) parseCsv(lastCsvText, checked);
+                }}
+              />
+              <Label htmlFor="ignoreDuplicates">
+                Doppelte Dateinamen ignorieren (nur erste Zeile wird verwendet)
+              </Label>
+            </div>
+          </>
+        )}
+
+        {!parseError && lastCsvText && (
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="ignoreDuplicates"
+              checked={ignoreDuplicates}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setIgnoreDuplicates(checked);
+                if (lastCsvText) parseCsv(lastCsvText, checked);
+              }}
+            />
+            <Label htmlFor="ignoreDuplicates">
+              Doppelte Dateinamen ignorieren (nur erste Zeile wird verwendet)
+            </Label>
+          </div>
+        )}
+
+        {parseResult && (
+          <div className="space-y-4">
+            {parseResult.ignoredDuplicateFilenames && parseResult.ignoredDuplicateFilenames.length > 0 && (
+              <Alert color="warning" icon={HiExclamationTriangle}>
+                <strong>{parseResult.ignoredDuplicateFilenames.length} doppelte{" "}
+                  {parseResult.ignoredDuplicateFilenames.length === 1 ? "Dateiname wurde" : "Dateinamen wurden"} ignoriert
+                </strong>{" "}– nur die erste Zeile je Dateiname wird verwendet:{" "}
+                {parseResult.ignoredDuplicateFilenames.slice(0, 5).map((f) => `"${f}"`).join(", ")}
+                {parseResult.ignoredDuplicateFilenames.length > 5 &&
+                  ` (und ${parseResult.ignoredDuplicateFilenames.length - 5} weitere)`}.
+              </Alert>
+            )}
+
+            <p className="text-sm text-gray-600">
+              <strong>{parseResult.documents.length}</strong> Zeilen erkannt · Dateiname-Spalte:{" "}
+              <code>{parseResult.filenameColumnName}</code>
+            </p>
+
+            {/* Import mode selection */}
+            {(doctype.fields.length > 0 || doctype.documents.length > 0) && (
+              <div className="space-y-2">
+                <h3 className="font-semibold">Importmodus</h3>
+                <div className="space-y-2 bg-gray-50 rounded-lg p-3 border border-gray-200">
+                  {[
+                    {
+                      value: "overwrite" as ImportMode,
+                      label: "Felder ableiten und Daten ersetzen",
+                      description:
+                        "Alle Felder werden aus der CSV abgeleitet und die bestehende Konfiguration sowie alle Dokumente werden überschrieben.",
+                    },
+                    {
+                      value: "merge-fields" as ImportMode,
+                      label: "Nur neue Felder ergänzen und Daten aktualisieren",
+                      description:
+                        "Bestehende Felder bleiben erhalten. Neue Spalten aus der CSV werden als neue Felder hinzugefügt. Metadaten werden aktualisiert.",
+                    },
+                    {
+                      value: "data-only" as ImportMode,
+                      label: "Nur Daten aktualisieren",
+                      description:
+                        "Felder bleiben unverändert. Nur Metadaten der Dokumente werden aus der CSV aktualisiert.",
+                    },
+                  ].map((opt) => (
+                    <label key={opt.value} className="flex items-start gap-3 cursor-pointer">
+                      <Radio
+                        name="importMode"
+                        value={opt.value}
+                        checked={importMode === opt.value}
+                        onChange={() => setImportMode(opt.value)}
+                        className="mt-0.5"
+                      />
+                      <span>
+                        <span className="font-medium">{opt.label}</span>
+                        <span className="block text-sm text-gray-500">{opt.description}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Field preview */}
+            {importMode !== "data-only" && (
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableHeadCell>Feldname</TableHeadCell>
+                    <TableHeadCell>Erkannter Typ</TableHeadCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody className="divide-y">
+                  {parseResult.fields.map((f) => (
+                    <TableRow key={f.name}>
+                      <TableCell className="font-medium">{f.name}</TableCell>
+                      <TableCell>
+                        <Badge color="gray">{typeOptions[f.type]}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        )}
+
+        {/* Document upload */}
+        <div>
+          <h3 className="font-semibold mb-2">2. Dokumente (optional)</h3>
+          {mixedTypeError && (
+            <Alert color="failure" icon={HiExclamationCircle} className="mb-2">
+              Die Dateien haben unterschiedliche Typen. Bitte nur PDF, HTML oder Bilder (jeweils nur einen Typ)
+              hochladen.
+            </Alert>
+          )}
+          {detectedDocType && (
+            <p className="text-sm text-gray-600 mb-2">
+              Erkannter Typ:{" "}
+              <Badge color="gray" className="inline-flex">
+                {documentTypeOptions[detectedDocType]}
+              </Badge>
+            </p>
+          )}
+          <DropZone
+            files={docFiles.map((f) => f.filename)}
+            onAdd={(f) => void addDocFiles(f)}
+            onRemove={removeDocFile}
+            accept=".pdf,.html,.htm,image/*"
+            placeholder="Dokumente hier ablegen oder klicken zum Auswählen (PDF, HTML oder Bilder)"
+          />
+        </div>
+      </div>
+
+      <hr className="text-gray-300 col-span-3" />
+      <div className="col-span-3 flex justify-end">
+        <Button onClick={handleWeiter}>
+          weiter
+        </Button>
+      </div>
+    </Card>
+  );
+};
+
+export default ImportPage;
