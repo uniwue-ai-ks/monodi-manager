@@ -124,6 +124,8 @@ export function exportToCsv(documents: DocumentEntry[], fields: DoctypeField[]):
 
 // ─── Import ──────────────────────────────────────────────────────────────────
 
+const FILENAME_IMPORT_HEADERS = new Set(["filename", "dateiname", "index", "key"]);
+
 /**
  * Import CSV for a specific doctype. Matches rows to existing documents by filename.
  * Unknown filenames are added as new DocumentEntry rows and flagged as warnings.
@@ -150,20 +152,23 @@ export function importFromCsv(
   }
 
   const headerCells = parseCsvLine(rows[0]);
-  if (headerCells[0].toLowerCase() !== 'filename') {
-    throw new Error('CSV hat keine gültige Kopfzeile (erste Spalte muss "filename" sein)');
+  const filenameColIdx = headerCells.findIndex((h) => FILENAME_IMPORT_HEADERS.has(h.toLowerCase()));
+  if (filenameColIdx < 0) {
+    throw new Error('CSV hat keine Dateiname-Spalte. Eine Spalte muss den Header "filename", "dateiname", "index" oder "key" haben (Groß-/Kleinschreibung egal).');
   }
 
-  // Build a map of fieldName → column index from CSV headers
+  // Build a map of fieldName → column index from CSV headers (skip filename column)
   const fieldByName = new Map(fields.map((f) => [f.name, f]));
-  const colToField: Array<DoctypeField | null> = headerCells.slice(1).map((col) => fieldByName.get(col) ?? null);
+  const colToField: Array<DoctypeField | null> = headerCells.map((col, i) =>
+    i === filenameColIdx ? null : (fieldByName.get(col) ?? null)
+  );
 
   // Work on a copy; keep docs from other doctypes unchanged
   const docsByFilename = new Map(existingDocs.map((d) => [d.filename, { ...d, values: { ...d.values } }]));
 
   for (let rowIdx = 1; rowIdx < rows.length; rowIdx++) {
     const cells = parseCsvLine(rows[rowIdx]);
-    const filename = cells[0]?.trim();
+    const filename = (cells[filenameColIdx] ?? "").trim();
     if (!filename) continue;
 
     let doc = docsByFilename.get(filename);
@@ -179,9 +184,9 @@ export function importFromCsv(
 
     for (let colIdx = 0; colIdx < colToField.length; colIdx++) {
       const field = colToField[colIdx];
-      if (!field) continue; // unknown column in CSV → skip
+      if (!field) continue; // filename column or unknown column → skip
 
-      const raw = cells[colIdx + 1] ?? '';
+      const raw = cells[colIdx] ?? '';
 
       if (field.type === ':boolean') {
         const lower = raw.trim().toLowerCase();

@@ -187,8 +187,12 @@ export function generateTtl(state: AppState): string {
         const pdfPath = `${doctypeName}/${doc.filename}`;
         triples.push(`  data:${mainDocPropSlug} "${escapeTtl(pdfPath)}"`);
       } else {
-        // HTML and image: content stored in mainDocumentContent
-        const content = doc.mainDocumentContent ?? "";
+        // HTML and image: content stored in mainDocumentContent.
+        // For images without uploaded content (CSV-only import), derive the img tag from the filename.
+        let content = doc.mainDocumentContent ?? "";
+        if (!content && mainDocType === "image") {
+          content = `<img src="resources/docs/${doc.filename}" style="width:100%;aspect-ratio:auto" />`;
+        }
         triples.push(`  data:${mainDocPropSlug} "${escapeTtl(content)}"`);
       }
 

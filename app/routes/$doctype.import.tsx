@@ -143,22 +143,22 @@ export const ImportPage = ({ params }: Route.ComponentProps) => {
       } else if (importMode === "merge-fields") {
         // Add new fields, merge document data
         newFields = mergeFields(doctype.fields, parseResult.fields);
-        const { updated } = importFromCsv(
-          lastCsvText!,
-          existingDocs,
-          newFields,
-          doctype.name
-        );
-        newDocs = updated;
+        try {
+          const { updated } = importFromCsv(lastCsvText!, existingDocs, newFields, doctype.name);
+          newDocs = updated;
+        } catch (err) {
+          setParseError(err instanceof Error ? err.message : String(err));
+          return;
+        }
       } else {
         // data-only: keep existing fields, only update document data
-        const { updated } = importFromCsv(
-          lastCsvText!,
-          existingDocs,
-          doctype.fields,
-          doctype.name
-        );
-        newDocs = updated;
+        try {
+          const { updated } = importFromCsv(lastCsvText!, existingDocs, doctype.fields, doctype.name);
+          newDocs = updated;
+        } catch (err) {
+          setParseError(err instanceof Error ? err.message : String(err));
+          return;
+        }
       }
     }
 
