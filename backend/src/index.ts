@@ -71,12 +71,17 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // CSV upload – POST /api/csv · listing – GET /api/csv · delete – DELETE /api/csv/:filename
 // CSVs are stored in STATE_DIR
 // ---------------------------------------------------------------------------
+/** Multer decodes originalname as Latin-1; browsers send UTF-8 — re-decode it. */
+function decodeName(name: string): string {
+  return Buffer.from(name, "latin1").toString("utf8");
+}
+
 const csvStorage = multer.diskStorage({
   destination(_req, _file, cb) {
     cb(null, STATE_DIR);
   },
   filename(_req, file, cb) {
-    cb(null, file.originalname);
+    cb(null, decodeName(file.originalname));
   },
 });
 
@@ -91,7 +96,7 @@ app.post(
   "/api/csv",
   uploadCsv.array("files"),
   (req: Request, res: Response) => {
-    const uploaded = (req.files as Express.Multer.File[]).map((f) => f.originalname);
+    const uploaded = (req.files as Express.Multer.File[]).map((f) => decodeName(f.originalname));
     res.json({ uploaded });
   },
 );
@@ -129,12 +134,12 @@ app.delete("/api/files/:filename", (req: Request, res: Response) => {
 // ---------------------------------------------------------------------------
 const fileStorage = multer.diskStorage({
   destination(_req, file, cb) {
-    const ext = path.extname(file.originalname).toLowerCase();
+    const ext = path.extname(decodeName(file.originalname)).toLowerCase();
     const subdir = ext === ".pdf" ? PDF_DIR : DOCS_DIR;
     cb(null, subdir);
   },
   filename(_req, file, cb) {
-    cb(null, file.originalname);
+    cb(null, decodeName(file.originalname));
   },
 });
 
@@ -151,7 +156,7 @@ app.post(
   upload.array("files"),
   (req: Request, res: Response) => {
     const uploaded = (req.files as Express.Multer.File[]).map(
-      (f) => f.originalname,
+      (f) => decodeName(f.originalname),
     );
     res.json({ uploaded });
   },
