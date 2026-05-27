@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Badge, Button, Checkbox, Label, Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from "flowbite-react";
 import { HiChevronDown, HiChevronRight, HiExclamationCircle, HiTrash } from "react-icons/hi2";
 import type { DocumentEntry } from "~/state";
 import { getServerFiles, isStandalone } from "~/utils/api";
+import { useUploadQueue } from "~/context/UploadContext";
 
 const PAGE_SIZE = 20;
 
@@ -51,6 +52,17 @@ export const FileStatusTable = ({ documents, filenames: filenamesProp, onRemove,
       void fetchServerFiles();
     }
   }, [open, fetchServerFiles, isFilenamesMode]);
+
+  // Re-fetch whenever active uploads finish (so "Auf Server" reflects new uploads).
+  const { tasks } = useUploadQueue();
+  const uploadingCount = tasks.filter((t) => t.status === "uploading").length;
+  const prevUploadingCount = useRef(0);
+  useEffect(() => {
+    if (prevUploadingCount.current > 0 && uploadingCount === 0 && open && !isStandalone && !isFilenamesMode) {
+      void fetchServerFiles();
+    }
+    prevUploadingCount.current = uploadingCount;
+  }, [uploadingCount, open, fetchServerFiles, isFilenamesMode]);
 
   // Reset to page 0 when the filter or list changes.
   useEffect(() => {
