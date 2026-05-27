@@ -12,6 +12,9 @@ import type { Route } from "./+types/root";
 import "./app.css";
 import { TopNavBar } from "~/components/TopNavBar";
 import { DoctypeStepsBar } from "~/components/DoctypeStepsBar";
+import { UploadProvider } from "~/context/UploadContext";
+import { UploadProgressBar } from "~/components/UploadProgressBar";
+import { isStandalone } from "~/utils/api";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -53,13 +56,16 @@ const AppLayout = () => {
   const doctypeSlug = doctypeMatch?.params?.doctype as string | undefined;
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <TopNavBar />
-      {doctypeSlug && <DoctypeStepsBar doctypeSlug={doctypeSlug} />}
-      <main className="flex-1 flex flex-col items-center py-8 px-4">
-        <Outlet />
-      </main>
-    </div>
+    <UploadProvider>
+      <div className="min-h-screen flex flex-col">
+        <TopNavBar />
+        {doctypeSlug && <DoctypeStepsBar doctypeSlug={doctypeSlug} />}
+        <main className="flex-1 flex flex-col items-center py-8 px-4">
+          <Outlet />
+        </main>
+        {!isStandalone && <UploadProgressBar />}
+      </div>
+    </UploadProvider>
   );
 };
 

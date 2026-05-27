@@ -5,6 +5,7 @@ import { HiCheckCircle, HiExclamationCircle } from "react-icons/hi2";
 import { Card, CardTitle } from "~/components/card";
 import { useAppState } from "~/utils/flowStorage";
 import { generateTtl } from "~/utils/exportTtl";
+import { deployToBackend, isStandalone } from "~/utils/api";
 import type { Route } from "./+types/export";
 
 export const meta = ({}: Route.MetaArgs) => {
@@ -45,15 +46,7 @@ export const ExportPage = () => {
     setDeployStatus("loading");
     setDeployError("");
     try {
-      const res = await fetch("/api/deploy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ttl, state }),
-      });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Server returned ${res.status}: ${text}`);
-      }
+      await deployToBackend(ttl, state);
       setDeployStatus("success");
     } catch (err) {
       setDeployError(err instanceof Error ? err.message : String(err));
@@ -89,18 +82,20 @@ export const ExportPage = () => {
           <p className="text-sm text-gray-500">Die RDF-Datei enthaelt die Referenzen auf Ihre PDFs.</p>
         </div>
 
-        <div className="flex items-center gap-4">
-          <Button
-            color="success"
-            onClick={() => void handleDeploy()}
-            disabled={deployStatus === "loading"}
-          >
-            {deployStatus === "loading" ? "Wird deployed…" : "Deploy"}
-          </Button>
-          <p className="text-sm text-gray-500">
-            RDF und aktuellen Stand auf dem Server speichern.
-          </p>
-        </div>
+        {!isStandalone && (
+          <div className="flex items-center gap-4">
+            <Button
+              color="success"
+              onClick={() => void handleDeploy()}
+              disabled={deployStatus === "loading"}
+            >
+              {deployStatus === "loading" ? "Wird deployed…" : "Deploy"}
+            </Button>
+            <p className="text-sm text-gray-500">
+              RDF und aktuellen Stand auf dem Server speichern.
+            </p>
+          </div>
+        )}
 
         {deployStatus === "success" && (
           <Alert color="success" icon={HiCheckCircle}>

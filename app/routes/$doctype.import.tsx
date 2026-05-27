@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router";
 import {
   Alert,
@@ -25,9 +25,7 @@ import {
 import {
   detectDocumentType,
   readDocumentFiles,
-  mergeDocFiles,
   docFilesToEntries,
-  type UploadedDocFile,
 } from "~/utils/documentUploads";
 import {
   inferSchemaFromCsv,
@@ -36,7 +34,16 @@ import {
 } from "~/utils/csvSchemaInfer";
 import { importFromCsv, mergeFields } from "~/utils/csvImportExport";
 import { documentTypeOptions, typeOptions } from "~/state";
-import type { DocumentType, DocumentEntry } from "~/state";
+import type { DocumentEntry } from "~/state";
+import {
+  isStandalone,
+  uploadCsvToBackend,
+  deleteCsvFile,
+  deleteServerFile,
+  getCsvFiles,
+} from "~/utils/api";
+import { useUploadQueue } from "~/context/UploadContext";
+import { FileStatusTable } from "~/components/FileStatusTable";
 import type { Route } from "./+types/$doctype.import";
 
 export const meta = ({}: Route.MetaArgs) => {
@@ -53,16 +60,15 @@ export const ImportPage = ({ params }: Route.ComponentProps) => {
   const storage = useAppState();
   const doctypes = storage.contents.doctypes ?? [];
   const doctype = getDoctypeBySlug(doctypes, params.doctype);
+  const { queueUpload } = useUploadQueue();
 
   const [csvFilename, setCsvFilename] = useState<string | null>(null);
+  const [serverCsvFiles, setServerCsvFiles] = useState<string[]>([]);
   const [parseResult, setParseResult] = useState<CsvSchemaResult | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
   const [ignoreDuplicates, setIgnoreDuplicates] = useState(false);
   const [lastCsvText, setLastCsvText] = useState<string | null>(null);
   const [importMode, setImportMode] = useState<ImportMode>("overwrite");
-
-  const [docFiles, setDocFiles] = useState<UploadedDocFile[]>([]);
-  const [detectedDocType, setDetectedDocType] = useState<DocumentType | null>(null);
   const [mixedTypeError, setMixedTypeError] = useState(false);
 
   if (!doctype) {
@@ -97,14 +103,33 @@ export const ImportPage = ({ params }: Route.ComponentProps) => {
     };
     reader.onerror = () => setParseError("Datei konnte nicht gelesen werden.");
     reader.readAsText(file);
+
+    // Upload to backend in connected mode; update server list on completion
+    if (!isStandalone) {
+      uploadCsvToBackend([file], () => {})
+        .then(() => getCsvFiles())
+        .then(setServerCsvFiles)
+        .catch(() => {/* errors are non-fatal here */});
+    }
   };
 
-  const handleCsvRemove = () => {
-    setCsvFilename(null);
-    setParseResult(null);
-    setParseError(null);
-    setLastCsvText(null);
-  };
+  const handleCsvRemoveByName = useCallback(async (name: string) => {
+    // Clear local parse state if the active CSV is being removed
+    if (name === csvFilename) {
+      setCsvFilename(null);
+      setParseResult(null);
+      setParseError(null);
+      setLastCsvText(null);
+    }
+    if (!isStandalone) {
+      try {
+        await deleteCsvFile(name);
+        setServerCsvFiles((prev) => prev.filter((f) => f !== name));
+      } catch {
+        /* silently ignore; user can retry by reopening the panel */
+      }
+    }
+  }, [csvFilename]);
 
   const addDocFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -116,17 +141,44 @@ export const ImportPage = ({ params }: Route.ComponentProps) => {
     setMixedTypeError(false);
     const read = await readDocumentFiles(files);
     if (read.length === 0) return;
-    setDocFiles((prev) => mergeDocFiles(prev, read));
-    setDetectedDocType(detected);
+
+    // Immediately commit new files to doctype.documents so FileStatusTable shows them
+    const newEntries = docFilesToEntries(read, doctype.name, doctype.documents);
+    const existingFilenames = new Set(doctype.documents.map((d) => d.filename));
+    const updatedDocuments: DocumentEntry[] = [
+      // Update existing entries with new content if re-dropped
+      ...doctype.documents.map((doc) => {
+        const updated = newEntries.find((e) => e.filename === doc.filename);
+        return updated ?? doc;
+      }),
+      // Add brand-new entries
+      ...newEntries.filter((e) => !existingFilenames.has(e.filename)),
+    ];
+    const updatedDoctypes = updateDoctype(doctypes, params.doctype, {
+      documents: updatedDocuments,
+      mainDocumentType: detected,
+    });
+    storage.patchContents({ doctypes: updatedDoctypes });
+
+    // Upload binary files (PDF, image) to the backend unless in standalone mode.
+    if (!isStandalone && (detected === "pdf" || detected === "image")) {
+      queueUpload(Array.from(files));
+    }
   };
 
-  const removeDocFile = (name: string) => {
-    setDocFiles((prev) => {
-      const remaining = prev.filter((f) => f.filename !== name);
-      if (remaining.length === 0) setDetectedDocType(null);
-      return remaining;
+  const handleDocRemove = useCallback(async (filename: string) => {
+    const updatedDoctypes = updateDoctype(doctypes, params.doctype, {
+      documents: doctype.documents.filter((d) => d.filename !== filename),
     });
-  };
+    storage.patchContents({ doctypes: updatedDoctypes });
+    if (!isStandalone) {
+      try {
+        await deleteServerFile(filename);
+      } catch {
+        /* silently ignore; the entry has already been removed from state */
+      }
+    }
+  }, [doctypes, doctype, params.doctype, storage]);
 
   const handleWeiter = () => {
     const existingDocs = doctype.documents;
@@ -137,11 +189,9 @@ export const ImportPage = ({ params }: Route.ComponentProps) => {
 
     if (parseResult) {
       if (importMode === "overwrite") {
-        // Replace everything: fields + all documents for this doctype
         newFields = parseResult.fields;
         newDocs = parseResult.documents;
       } else if (importMode === "merge-fields") {
-        // Add new fields, merge document data
         newFields = mergeFields(doctype.fields, parseResult.fields);
         try {
           const { updated } = importFromCsv(lastCsvText!, existingDocs, newFields, doctype.name);
@@ -151,7 +201,6 @@ export const ImportPage = ({ params }: Route.ComponentProps) => {
           return;
         }
       } else {
-        // data-only: keep existing fields, only update document data
         try {
           const { updated } = importFromCsv(lastCsvText!, existingDocs, doctype.fields, doctype.name);
           newDocs = updated;
@@ -162,36 +211,21 @@ export const ImportPage = ({ params }: Route.ComponentProps) => {
       }
     }
 
-    // Merge document files
-    if (docFiles.length > 0 && detectedDocType) {
-      newDocumentType = detectedDocType;
-      // Merge uploaded files into document entries
-      const merged = docFilesToEntries(docFiles, doctype.name, newDocs);
-      // Fill in any CSV documents that weren't matched by an uploaded file
-      const uploadedFilenames = new Set(docFiles.map((f) => f.filename));
-      newDocs = newDocs.map((doc) => {
-        if (uploadedFilenames.has(doc.filename)) {
-          return merged.find((d) => d.filename === doc.filename) ?? doc;
-        }
-        return doc;
+    if (newDocumentType !== doctype.mainDocumentType || newDocs !== existingDocs || newFields !== doctype.fields) {
+      const updatedDoctypes = updateDoctype(doctypes, params.doctype, {
+        fields: newFields,
+        documents: newDocs,
+        mainDocumentType: newDocumentType,
       });
-      // Add new entries from uploaded files not in the CSV/existing list
-      const existingFilenames = new Set(newDocs.map((d) => d.filename));
-      for (const mergedDoc of merged) {
-        if (!existingFilenames.has(mergedDoc.filename)) {
-          newDocs.push(mergedDoc);
-        }
-      }
+      storage.patchContents({ doctypes: updatedDoctypes });
     }
-
-    const updatedDoctypes = updateDoctype(doctypes, params.doctype, {
-      fields: newFields,
-      documents: newDocs,
-      mainDocumentType: newDocumentType,
-    });
-    storage.patchContents({ doctypes: updatedDoctypes });
     navigate(`/${params.doctype}/fields`);
   };
+
+  // CSV file list: in connected mode use server list; in standalone use local state
+  const csvFilenames: string[] = isStandalone
+    ? (csvFilename ? [csvFilename] : [])
+    : serverCsvFiles;
 
   return (
     <Card className="max-w-200 pb-4 grid grid-cols-3 gap-4">
@@ -210,13 +244,18 @@ export const ImportPage = ({ params }: Route.ComponentProps) => {
             <code>index</code> oder <code>key</code> tragen.
           </p>
           <DropZone
-            files={csvFilename ? [csvFilename] : []}
             onAdd={handleCsvUpload}
-            onRemove={handleCsvRemove}
             accept=".csv,text/csv"
             multiple={false}
             placeholder="CSV-Datei hier ablegen oder klicken zum Auswählen"
           />
+          <div className="mt-2">
+            <FileStatusTable
+              filenames={csvFilenames}
+              onRemove={(name) => void handleCsvRemoveByName(name)}
+              label="CSV-Dateien"
+            />
+          </div>
         </div>
 
         {parseError && (
@@ -350,22 +389,26 @@ export const ImportPage = ({ params }: Route.ComponentProps) => {
               hochladen.
             </Alert>
           )}
-          {detectedDocType && (
+          {doctype.mainDocumentType && (
             <p className="text-sm text-gray-600 mb-2">
               Erkannter Typ:{" "}
               <Badge color="gray" className="inline-flex">
-                {documentTypeOptions[detectedDocType]}
+                {documentTypeOptions[doctype.mainDocumentType]}
               </Badge>
             </p>
           )}
           <DropZone
-            files={docFiles.map((f) => f.filename)}
             onAdd={(f) => void addDocFiles(f)}
-            onRemove={removeDocFile}
             accept=".pdf,.html,.htm,image/*"
             placeholder="Dokumente hier ablegen oder klicken zum Auswählen (PDF, HTML oder Bilder)"
           />
         </div>
+
+        {/* File status overview */}
+        <FileStatusTable
+          documents={doctype.documents}
+          onRemove={(f) => void handleDocRemove(f)}
+        />
       </div>
 
       <hr className="text-gray-300 col-span-3" />

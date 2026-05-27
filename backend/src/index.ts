@@ -28,6 +28,7 @@ if (missing.length > 0) {
 
 const RESOURCE_DIR = process.env.MONODI_RESOURCE_DIR!;
 const RDF_DIR = process.env.MONODI_RDF_DIR!;
+const STATE_DIR = process.env.MONODI_STATE_DIR ?? RDF_DIR;
 const PASSWORD = process.env.MONODI_MANAGE_PASSWORD!;
 
 // Ensure storage directories exist on startup
@@ -36,6 +37,7 @@ const DOCS_DIR = path.join(RESOURCE_DIR, "docs");
 fs.mkdirSync(PDF_DIR, { recursive: true });
 fs.mkdirSync(DOCS_DIR, { recursive: true });
 fs.mkdirSync(RDF_DIR, { recursive: true });
+fs.mkdirSync(STATE_DIR, { recursive: true });
 
 // ---------------------------------------------------------------------------
 // Express app
@@ -66,6 +68,62 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 // ---------------------------------------------------------------------------
+// CSV upload – POST /api/csv · listing – GET /api/csv · delete – DELETE /api/csv/:filename
+// CSVs are stored in STATE_DIR
+// ---------------------------------------------------------------------------
+const csvStorage = multer.diskStorage({
+  destination(_req, _file, cb) {
+    cb(null, STATE_DIR);
+  },
+  filename(_req, file, cb) {
+    cb(null, file.originalname);
+  },
+});
+
+const uploadCsv = multer({ storage: csvStorage });
+
+app.get("/api/csv", (_req: Request, res: Response) => {
+  const files = fs.readdirSync(STATE_DIR).filter((f) => f.endsWith(".csv"));
+  res.json({ files });
+});
+
+app.post(
+  "/api/csv",
+  uploadCsv.array("files"),
+  (req: Request, res: Response) => {
+    const uploaded = (req.files as Express.Multer.File[]).map((f) => f.originalname);
+    res.json({ uploaded });
+  },
+);
+
+app.delete("/api/csv/:filename", (req: Request, res: Response) => {
+  const filename = path.basename(req.params.filename);
+  const target = path.join(STATE_DIR, filename);
+  if (!fs.existsSync(target)) {
+    res.status(404).json({ error: "File not found" });
+    return;
+  }
+  fs.unlinkSync(target);
+  res.json({ deleted: filename });
+});
+
+// ---------------------------------------------------------------------------
+// Delete a binary document file – DELETE /api/files/:filename
+// Searches PDF_DIR then DOCS_DIR
+// ---------------------------------------------------------------------------
+app.delete("/api/files/:filename", (req: Request, res: Response) => {
+  const filename = path.basename(req.params.filename);
+  const candidates = [path.join(PDF_DIR, filename), path.join(DOCS_DIR, filename)];
+  const target = candidates.find((p) => fs.existsSync(p));
+  if (!target) {
+    res.status(404).json({ error: "File not found" });
+    return;
+  }
+  fs.unlinkSync(target);
+  res.json({ deleted: filename });
+});
+
+// ---------------------------------------------------------------------------
 // File upload – POST /api/files
 // PDFs go to RESOURCE_DIR/pdf, everything else to RESOURCE_DIR/docs
 // ---------------------------------------------------------------------------
@@ -81,6 +139,12 @@ const fileStorage = multer.diskStorage({
 });
 
 const upload = multer({ storage: fileStorage });
+
+app.get("/api/files", (_req: Request, res: Response) => {
+  const pdfFiles = fs.readdirSync(PDF_DIR);
+  const docsFiles = fs.readdirSync(DOCS_DIR);
+  res.json({ files: [...pdfFiles, ...docsFiles] });
+});
 
 app.post(
   "/api/files",
@@ -115,7 +179,7 @@ app.post("/api/deploy", (req: Request, res: Response) => {
       .replace(/:/g, "-")
       .replace(/\./g, "-");
     fs.writeFileSync(
-      path.join(RDF_DIR, `state_${datetime}.json`),
+      path.join(STATE_DIR, `state_${datetime}.json`),
       JSON.stringify(state, null, 2),
       "utf-8",
     );
@@ -148,5 +212,6 @@ app.listen(PORT, () => {
   console.log(`Monodi backend running on port ${PORT}`);
   console.log(`  Resource dir : ${RESOURCE_DIR}`);
   console.log(`  RDF dir      : ${RDF_DIR}`);
+  console.log(`  State dir    : ${STATE_DIR}`);
   console.log(`  Frontend     : ${CLIENT_DIR}`);
 });

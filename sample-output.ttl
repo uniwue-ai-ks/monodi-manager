@@ -1,0 +1,188 @@
+@prefix :     <http://olyro.de/mondiview/> .
+@prefix data: <http://monodicum/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+# Version
+data:version a rdf:Property .
+data:version rdfs:label "2026-05-20T15:29:31Z" .
+
+# Viewer configuration (frontmatter)
+
+:tabTitle :hasContent "Archäologische Karteikarten"@de .
+:headerTitle :hasContent "Archäologische Karteikarten"@de .
+:copyright :hasContent "© 2026 Leibnitz-Zentrum für Archäologie, Mainz"@de .
+:footer :hasContent """
+
+"""@de .
+:mainPagePreSearches :hasContent """
+Wählen Sie aus „Suchkriterium hinzufügen“ Attribute aus, geben Sie dazu Werte                                                                                                                                                            
+an und klicken Sie auf „Suchen“, worauf die passenden Dokumente in der Tabelle                                                                                                                                                            
+erscheinen.  Durch Klick auf den Link unter „Aktion“ werden sie angezeigt.
+"""@de .
+:mainPagePostSearches :hasContent """
+
+"""@de .
+:customJavascript :hasContent """
+
+""" .
+:customCss :hasContent """
+
+""" .
+
+# Class: Karteikarten
+data:karteikarten
+  a rdfs:Class ;
+  rdfs:label "Karteikarten"@de ;
+  :shortUrlTag "karteikarten" .
+
+data:karteikartenDocument
+  a rdf:Property ;
+  rdfs:label "Dokument"@de ;
+  rdfs:domain data:karteikarten ;
+  rdfs:range :htmlContent ;
+  :documentPosition [ :main 1 ] .
+
+data:karteikartenArtifactDescription
+  a rdf:Property ;
+  rdfs:label "Gegenstand"@de ;
+  rdfs:domain data:karteikarten ;
+  rdfs:range :string ;
+  :searchOrder 1 ;
+  :headerOrder 1 ;
+  :documentPosition [ :right 1 ] .
+
+data:karteikartenArtifactSize
+  a rdf:Property ;
+  rdfs:label "Größe"@de ;
+  rdfs:domain data:karteikarten ;
+  rdfs:range :category ;
+  :searchOrder 2 ;
+  :documentPosition [ :right 1 ] .
+
+data:karteikartenDiaNr
+  a rdf:Property ;
+  rdfs:label "Dia. Nr."@de ;
+  rdfs:domain data:karteikarten ;
+  rdfs:range :string ;
+  :searchOrder 3 ;
+  :documentPosition [ :right 1 ] .
+
+data:karteikartenFindspotCountry
+  a rdf:Property ;
+  rdfs:label "Land"@de ;
+  rdfs:domain data:karteikarten ;
+  rdfs:range :string ;
+  :searchOrder 4 ;
+  :documentPosition [ :right 1 ] .
+
+data:karteikartenFindspotDistrict
+  a rdf:Property ;
+  rdfs:label "Region"@de ;
+  rdfs:domain data:karteikarten ;
+  rdfs:range :string ;
+  :searchOrder 5 ;
+  :documentPosition [ :right 1 ] .
+
+data:karteikartenFindspotLocation
+  a rdf:Property ;
+  rdfs:label "Fundort"@de ;
+  rdfs:domain data:karteikarten ;
+  rdfs:range :string ;
+  :searchOrder 6 ;
+  :documentPosition [ :right 1 ] .
+
+data:karteikartenFullTextTranscription
+  a rdf:Property ;
+  rdfs:label "Volltext"@de ;
+  rdfs:domain data:karteikarten ;
+  rdfs:range :string ;
+  :searchOrder 7 .
+
+data:karteikartenGeonamesId
+  a rdf:Property ;
+  rdfs:label "geonames_id"@de ;
+  rdfs:domain data:karteikarten ;
+  rdfs:range :number .
+
+data:karteikartenImageDescription
+  a rdf:Property ;
+  rdfs:label "Bildinhalt"@de ;
+  rdfs:domain data:karteikarten ;
+  rdfs:range :string ;
+  :searchOrder 8 ;
+  :headerOrder 2 ;
+  :documentPosition [ :right 1 ] .
+
+data:karteikartenImageKeywords
+  a rdf:Property ;
+  rdfs:label "image_keywords"@de ;
+  rdfs:domain data:karteikarten ;
+  rdfs:range :string .
+
+data:karteikartenImageMotif
+  a rdf:Property ;
+  rdfs:label "Motiv"@de ;
+  rdfs:domain data:karteikarten ;
+  rdfs:range :category ;
+  :searchOrder 9 ;
+  :headerOrder 3 ;
+  :documentPosition [ :right 1 ] .
+
+data:karteikartenLiteratureReference
+  a rdf:Property ;
+  rdfs:label "Literatur"@de ;
+  rdfs:domain data:karteikarten ;
+  rdfs:range :string ;
+  :searchOrder 10 ;
+  :documentPosition [ :right 1 ] .
+
+data:karteikartenMuseum
+  a rdf:Property ;
+  rdfs:label "Museum"@de ;
+  rdfs:domain data:karteikarten ;
+  rdfs:range :string ;
+  :searchOrder 11 ;
+  :headerOrder 4 ;
+  :documentPosition [ :right 1 ] .
+
+data:karteikartenPlateNumber
+  a rdf:Property ;
+  rdfs:label "Pl. Nr."@de ;
+  rdfs:domain data:karteikarten ;
+  rdfs:range :string ;
+  :searchOrder 12 ;
+  :documentPosition [ :right 1 ] .
+
+# Instance data
+
+data:karteikarten_1__Alte_r_mische_Kartei_0034
+  a data:karteikarten ;
+  data:karteikartenDocument "" ;
+  data:karteikartenArtifactDescription "\"Grabungspause\"" ;
+  data:karteikartenArtifactSize "9:12" ;
+  data:karteikartenDiaNr "3000" ;
+  data:karteikartenFindspotCountry "Germany" ;
+  data:karteikartenFindspotDistrict "Lower Saxony" ;
+  data:karteikartenFindspotLocation "Stöttinghausen" ;
+  data:karteikartenFullTextTranscription "Größe: 9:12\nDia. Nr. 3000\nGegenstand u. F. O.\n\"Grabungspause\"\nStöttinghausen, Kr. Syke\nMus.\nLit.:\nPl. Nr. L 119/24" ;
+  data:karteikartenGeonamesId "2826333"^^xsd:integer ;
+  data:karteikartenImageDescription "Landschaften" ;
+  data:karteikartenImageKeywords "Excavation, People, Landscape, Earthworks" ;
+  data:karteikartenImageMotif "Siedlung/Landschaft" ;
+  data:karteikartenPlateNumber "L 119/24" .
+
+data:karteikarten_3__Alte_r_mische_Kartei_0147
+  a data:karteikarten ;
+  data:karteikartenDocument "" ;
+  data:karteikartenArtifactDescription "Römerlager" ;
+  data:karteikartenArtifactSize "8:10" ;
+  data:karteikartenDiaNr "3364" ;
+  data:karteikartenFindspotLocation "Kneblingshausen" ;
+  data:karteikartenFullTextTranscription "Größe: 8:10\nDia. Nr. 3364\nGegenstand u. F.O.\n\"Römerlager\"\nKneblingshausen\nMus.\nSchumacher, Materialien zur\nBesiedlungsgeschichte\nDeutschlands, S. 181, 78\nPl. Nr. L 125/17" ;
+  data:karteikartenImageDescription "Plaene, Grabungsplaene, Militaeranlagen" ;
+  data:karteikartenImageKeywords "Plan, Enclosure, Roman camp, Scale" ;
+  data:karteikartenImageMotif "Siedlung/Landschaft" ;
+  data:karteikartenLiteratureReference "Schumacher, Materialien zur Besiedlungsgeschichte Deutschlands, S. 181, 78" ;
+  data:karteikartenPlateNumber "L 125/17" .

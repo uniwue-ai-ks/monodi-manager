@@ -1,0 +1,74 @@
+@prefix :     <http://olyro.de/mondiview/>.
+@prefix data: <http://monodicum/>.
+@prefix text: <http://jena.apache.org/text#>.
+
+# Page title, usually should be the same for :tabTitle and :headerTitle
+:tabTitle :hasContent "Mein Projekt"@de, "My project"@en.
+:headerTitle :hasContent "Mein Projekt"@de, "My Project"@en.
+
+# content for copyright in footer
+:copyright :hasContent
+        "© 2024 Deutsches Institut für Wirtschaftsforschung e.V. (DIW Berlin)"@de,
+        "© 2024 Deutsches Institut für Wirtschaftsforschung e.V. (DIW Berlin)"@en.
+
+# additional content for the footer
+:footer :hasContent ""@de, ""@en.
+
+# HTML for the front page, shown before the list of document types
+:mainPagePreSearches :hasContent
+        """
+        <h1 class="cm-main_h1">Wochenbericht digital in Wort und Zahl - Digitale Bereitstellung der DIW
+Wochenberichtsinhalte 1928 bis 1968 (WBdigital)</h1>
+        """@de,
+        """
+        <h1 class="cm-main_h1">Wochenbericht digital in Wort und Zahl - Digitale Bereitstellung der DIW
+Wochenberichtsinhalte 1928 bis 1968 (WBdigital)</h1>
+        """@en.
+
+# HTML for the front page, shown after the list of document types
+:mainPagePostSearches :hasContent
+        """
+        <div class="logos">
+                <a href="https://www.uni-wuerzburg.de/"><img src="/resources/uniwue.svg" alt="Uni Würzburg" /></a>
+                <a href="https://www.diw.de/"><img src="/resources/diw.svg" alt="Deutsches Institut für Wirtschaftsforschung" /></a>
+                <a href="https://www.zbw.de/"><img src="/resources/zbw.svg" alt="Leibniz-Informationszentrum Wirtschaft" /></a>
+                <a href="https://www.wzb.de/"><img src="/resources/wzb.png" alt="Wissenschaftszentrum Berlin für Sozialforschung"/></a>
+        </div>
+        """@de,
+        """
+        <div class="logos">
+                <a href="https://www.uni-wuerzburg.de/"><img src="/resources/uniwue.svg" alt="Uni Würzburg" /></a>
+                <a href="https://www.diw.de/"><img src="/resources/diw.svg" alt="Deutsches Institut für Wirtschaftsforschung" /></a>
+                <a href="https://www.zbw.de/"><img src="/resources/zbw.svg" alt="Leibniz Information Centre for Economics" /></a>
+                <a href="https://www.wzb.de/"><img src="/resources/wzb.en.png" alt="Berlin Social Science Center"/></a>
+        </div>
+        """@en.
+
+# Additional javascript to add to the viewer
+:customJavascript :hasContent """
+""".
+
+# Additional CSS to add to the viewer
+:customCss :hasContent """
+:root {
+  --titleColor: white;
+  --headerBackground: #00786B;
+  --headerForeground: #FFFFFF;
+}
+
+.app-main>.header {
+  background-color: var(--headerBackground) !important;
+  background-image: none !important;
+  color: var(--headerForeground) !important;
+}
+
+.app-main>.footer {
+  background-color: var(--headerBackground) !important;
+  background-image: none !important;
+  color: var(--headerForeground) !important;
+}
+
+.app-main>.header .navigation a {
+  color: rgba(255, 255, 255, 0.8);
+}
+""".
