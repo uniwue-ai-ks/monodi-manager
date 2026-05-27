@@ -190,45 +190,47 @@ export const ImportPage = ({ params }: Route.ComponentProps) => {
     }
   }, [doctypes, doctype, params.doctype, storage]);
 
-  const handleWeiter = () => {
+  /** Apply the current CSV parseResult + importMode to state. Returns false on error. */
+  const applyCsv = (): boolean => {
+    if (!parseResult) return true; // nothing to apply
     const existingDocs = doctype.documents;
-
     let newFields = doctype.fields;
     let newDocs: DocumentEntry[] = existingDocs;
-    let newDocumentType = doctype.mainDocumentType;
 
-    if (parseResult) {
-      if (importMode === "overwrite") {
-        newFields = parseResult.fields;
-        newDocs = parseResult.documents;
-      } else if (importMode === "merge-fields") {
-        newFields = mergeFields(doctype.fields, parseResult.fields);
-        try {
-          const { updated } = importFromCsv(lastCsvText!, existingDocs, newFields, doctype.name);
-          newDocs = updated;
-        } catch (err) {
-          setParseError(err instanceof Error ? err.message : String(err));
-          return;
-        }
-      } else {
-        try {
-          const { updated } = importFromCsv(lastCsvText!, existingDocs, doctype.fields, doctype.name);
-          newDocs = updated;
-        } catch (err) {
-          setParseError(err instanceof Error ? err.message : String(err));
-          return;
-        }
+    if (importMode === "overwrite") {
+      newFields = parseResult.fields;
+      newDocs = parseResult.documents;
+    } else if (importMode === "merge-fields") {
+      newFields = mergeFields(doctype.fields, parseResult.fields);
+      try {
+        const { updated } = importFromCsv(lastCsvText!, existingDocs, newFields, doctype.name);
+        newDocs = updated;
+      } catch (err) {
+        setParseError(err instanceof Error ? err.message : String(err));
+        return false;
+      }
+    } else {
+      try {
+        const { updated } = importFromCsv(lastCsvText!, existingDocs, doctype.fields, doctype.name);
+        newDocs = updated;
+      } catch (err) {
+        setParseError(err instanceof Error ? err.message : String(err));
+        return false;
       }
     }
 
-    if (newDocumentType !== doctype.mainDocumentType || newDocs !== existingDocs || newFields !== doctype.fields) {
+    if (newDocs !== existingDocs || newFields !== doctype.fields) {
       const updatedDoctypes = updateDoctype(doctypes, params.doctype, {
         fields: newFields,
         documents: newDocs,
-        mainDocumentType: newDocumentType,
       });
       storage.patchContents({ doctypes: updatedDoctypes });
     }
+    return true;
+  };
+
+  const handleWeiter = () => {
+    if (!applyCsv()) return;
     navigate(`/${params.doctype}/fields`);
   };
 
@@ -324,7 +326,7 @@ export const ImportPage = ({ params }: Route.ComponentProps) => {
             </p>
 
             {/* Import mode selection */}
-            {(doctype.fields.length > 0 || doctype.documents.length > 0) && (
+            {(doctype.fields.length > 0 || doctype.documents.length > 0) ? (
               <div className="space-y-2">
                 <h3 className="font-semibold">Importmodus</h3>
                 <div className="space-y-2 bg-gray-50 rounded-lg p-3 border border-gray-200">
@@ -363,6 +365,17 @@ export const ImportPage = ({ params }: Route.ComponentProps) => {
                     </label>
                   ))}
                 </div>
+                <div className="flex justify-end">
+                  <Button size="sm" color="light" onClick={() => applyCsv()}>
+                    Metadaten jetzt anwenden
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex justify-end">
+                <Button size="sm" color="light" onClick={() => applyCsv()}>
+                  Metadaten jetzt anwenden
+                </Button>
               </div>
             )}
 
