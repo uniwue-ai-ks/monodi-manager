@@ -53,7 +53,8 @@ export const meta = ({}: Route.MetaArgs) => {
   ];
 };
 
-type ImportMode = "overwrite" | "merge-fields" | "data-only";
+type FieldsMode = "replace" | "add-new" | "keep";
+type DataMode = "replace" | "add-new" | "keep";
 
 export const ImportPage = ({ params }: Route.ComponentProps) => {
   const navigate = useNavigate();
@@ -68,7 +69,8 @@ export const ImportPage = ({ params }: Route.ComponentProps) => {
   const [parseError, setParseError] = useState<string | null>(null);
   const [ignoreDuplicates, setIgnoreDuplicates] = useState(false);
   const [lastCsvText, setLastCsvText] = useState<string | null>(null);
-  const [importMode, setImportMode] = useState<ImportMode>("overwrite");
+  const [fieldsMode, setFieldsMode] = useState<FieldsMode>("replace");
+  const [dataMode, setDataMode] = useState<DataMode>("replace");
   const [mixedTypeError, setMixedTypeError] = useState(false);
   const [ignoreUnknownFiles, setIgnoreUnknownFiles] = useState(false);
 
@@ -190,18 +192,25 @@ export const ImportPage = ({ params }: Route.ComponentProps) => {
     }
   }, [doctypes, doctype, params.doctype, storage]);
 
-  /** Apply the current CSV parseResult + importMode to state. Returns false on error. */
+  /** Apply the current CSV parseResult using the selected fieldsMode + dataMode. Returns false on error. */
   const applyCsv = (): boolean => {
     if (!parseResult) return true; // nothing to apply
     const existingDocs = doctype.documents;
-    let newFields = doctype.fields;
-    let newDocs: DocumentEntry[] = existingDocs;
 
-    if (importMode === "overwrite") {
+    // --- Fields ---
+    let newFields = doctype.fields;
+    if (fieldsMode === "replace") {
       newFields = parseResult.fields;
-      newDocs = parseResult.documents;
-    } else if (importMode === "merge-fields") {
+    } else if (fieldsMode === "add-new") {
       newFields = mergeFields(doctype.fields, parseResult.fields);
+    }
+    // "keep": leave newFields as doctype.fields
+
+    // --- Data (documents) ---
+    let newDocs: DocumentEntry[] = existingDocs;
+    if (dataMode === "replace") {
+      newDocs = parseResult.documents;
+    } else if (dataMode === "add-new") {
       try {
         const { updated } = importFromCsv(lastCsvText!, existingDocs, newFields, doctype.name);
         newDocs = updated;
@@ -209,15 +218,8 @@ export const ImportPage = ({ params }: Route.ComponentProps) => {
         setParseError(err instanceof Error ? err.message : String(err));
         return false;
       }
-    } else {
-      try {
-        const { updated } = importFromCsv(lastCsvText!, existingDocs, doctype.fields, doctype.name);
-        newDocs = updated;
-      } catch (err) {
-        setParseError(err instanceof Error ? err.message : String(err));
-        return false;
-      }
     }
+    // "keep": leave newDocs as existingDocs
 
     if (newDocs !== existingDocs || newFields !== doctype.fields) {
       const updatedDoctypes = updateDoctype(doctypes, params.doctype, {
@@ -327,43 +329,47 @@ export const ImportPage = ({ params }: Route.ComponentProps) => {
 
             {/* Import mode selection */}
             {(doctype.fields.length > 0 || doctype.documents.length > 0) ? (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <h3 className="font-semibold">Importmodus</h3>
-                <div className="space-y-2 bg-gray-50 rounded-lg p-3 border border-gray-200">
-                  {[
-                    {
-                      value: "overwrite" as ImportMode,
-                      label: "Felder ableiten und Daten ersetzen",
-                      description:
-                        "Alle Felder werden aus der CSV abgeleitet und die bestehende Konfiguration sowie alle Dokumente werden überschrieben.",
-                    },
-                    {
-                      value: "merge-fields" as ImportMode,
-                      label: "Nur neue Felder ergänzen und Daten aktualisieren",
-                      description:
-                        "Bestehende Felder bleiben erhalten. Neue Spalten aus der CSV werden als neue Felder hinzugefügt. Metadaten werden aktualisiert.",
-                    },
-                    {
-                      value: "data-only" as ImportMode,
-                      label: "Nur Daten aktualisieren",
-                      description:
-                        "Felder bleiben unverändert. Nur Metadaten der Dokumente werden aus der CSV aktualisiert.",
-                    },
-                  ].map((opt) => (
-                    <label key={opt.value} className="flex items-start gap-3 cursor-pointer">
-                      <Radio
-                        name="importMode"
-                        value={opt.value}
-                        checked={importMode === opt.value}
-                        onChange={() => setImportMode(opt.value)}
-                        className="mt-0.5"
-                      />
-                      <span>
-                        <span className="font-medium">{opt.label}</span>
-                        <span className="block text-sm text-gray-500">{opt.description}</span>
-                      </span>
-                    </label>
-                  ))}
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Fields axis */}
+                  <div className="space-y-2 bg-gray-50 rounded-lg p-3 border border-gray-200">
+                    <p className="text-sm font-medium text-gray-700">Felder</p>
+                    {(
+                      [
+                        { value: "replace" as FieldsMode, label: "Ersetzen", description: "Felder werden vollständig durch die aus der CSV abgeleiteten ersetzt." },
+                        { value: "add-new" as FieldsMode, label: "Neue ergänzen", description: "Bestehende Felder bleiben erhalten, neue Spalten werden hinzugefügt." },
+                        { value: "keep" as FieldsMode, label: "Unverändert lassen", description: "Felder werden nicht verändert." },
+                      ] as const
+                    ).map((opt) => (
+                      <label key={opt.value} className="flex items-start gap-2 cursor-pointer">
+                        <Radio name="fieldsMode" value={opt.value} checked={fieldsMode === opt.value} onChange={() => setFieldsMode(opt.value)} className="mt-0.5" />
+                        <span>
+                          <span className="font-medium text-sm">{opt.label}</span>
+                          <span className="block text-xs text-gray-500">{opt.description}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  {/* Data axis */}
+                  <div className="space-y-2 bg-gray-50 rounded-lg p-3 border border-gray-200">
+                    <p className="text-sm font-medium text-gray-700">Metadaten</p>
+                    {(
+                      [
+                        { value: "replace" as DataMode, label: "Ersetzen", description: "Alle bestehenden Dokumente werden durch die aus der CSV ersetzt." },
+                        { value: "add-new" as DataMode, label: "Neue ergänzen", description: "Bestehende Einträge werden aktualisiert, neue aus der CSV hinzugefügt." },
+                        { value: "keep" as DataMode, label: "Unverändert lassen", description: "Dokumenteinträge werden nicht verändert." },
+                      ] as const
+                    ).map((opt) => (
+                      <label key={opt.value} className="flex items-start gap-2 cursor-pointer">
+                        <Radio name="dataMode" value={opt.value} checked={dataMode === opt.value} onChange={() => setDataMode(opt.value)} className="mt-0.5" />
+                        <span>
+                          <span className="font-medium text-sm">{opt.label}</span>
+                          <span className="block text-xs text-gray-500">{opt.description}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
                 <div className="flex justify-end">
                   <Button size="sm" color="light" onClick={() => applyCsv()}>
@@ -380,7 +386,7 @@ export const ImportPage = ({ params }: Route.ComponentProps) => {
             )}
 
             {/* Field preview */}
-            {importMode !== "data-only" && (
+            {fieldsMode !== "keep" && (
               <Table>
                 <TableHead>
                   <TableRow>
