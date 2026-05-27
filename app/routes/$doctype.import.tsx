@@ -70,6 +70,7 @@ export const ImportPage = ({ params }: Route.ComponentProps) => {
   const [lastCsvText, setLastCsvText] = useState<string | null>(null);
   const [importMode, setImportMode] = useState<ImportMode>("overwrite");
   const [mixedTypeError, setMixedTypeError] = useState(false);
+  const [ignoreUnknownFiles, setIgnoreUnknownFiles] = useState(false);
 
   if (!doctype) {
     return (
@@ -133,13 +134,21 @@ export const ImportPage = ({ params }: Route.ComponentProps) => {
 
   const addDocFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
-    const detected = detectDocumentType(Array.from(files));
+
+    // Filter to known files if the option is enabled and there are existing entries
+    const knownFilenames = new Set(doctype.documents.map((d) => d.filename));
+    const filteredFiles = ignoreUnknownFiles && knownFilenames.size > 0
+      ? Array.from(files).filter((f) => knownFilenames.has(f.name))
+      : Array.from(files);
+    if (filteredFiles.length === 0) return;
+
+    const detected = detectDocumentType(filteredFiles);
     if (!detected) {
       setMixedTypeError(true);
       return;
     }
     setMixedTypeError(false);
-    const read = await readDocumentFiles(files);
+    const read = await readDocumentFiles(filteredFiles);
     if (read.length === 0) return;
 
     // Immediately commit new files to doctype.documents so FileStatusTable shows them
@@ -162,7 +171,7 @@ export const ImportPage = ({ params }: Route.ComponentProps) => {
 
     // Upload binary files (PDF, image) to the backend unless in standalone mode.
     if (!isStandalone && (detected === "pdf" || detected === "image")) {
-      queueUpload(Array.from(files));
+      queueUpload(filteredFiles);
     }
   };
 
@@ -403,6 +412,16 @@ export const ImportPage = ({ params }: Route.ComponentProps) => {
             accept=".pdf,.html,.htm,image/*"
             placeholder="Dokumente hier ablegen oder klicken zum Auswählen (PDF, HTML oder Bilder)"
           />
+          <div className="flex items-center gap-2 mt-2">
+            <Checkbox
+              id="ignoreUnknownFiles"
+              checked={ignoreUnknownFiles}
+              onChange={(e) => setIgnoreUnknownFiles(e.target.checked)}
+            />
+            <Label htmlFor="ignoreUnknownFiles" className="cursor-pointer">
+              Dateien ohne Metadaten-Eintrag ignorieren
+            </Label>
+          </div>
         </div>
 
         {/* File status overview */}

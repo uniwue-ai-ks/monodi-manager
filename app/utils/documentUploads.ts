@@ -58,7 +58,7 @@ function readFileAsText(file: File): Promise<string> {
  * For images the img tag string is stored in `content`.
  * For PDFs, `content` is undefined.
  */
-export async function readDocumentFiles(files: FileList | null): Promise<UploadedDocFile[]> {
+export async function readDocumentFiles(files: FileList | File[] | null): Promise<UploadedDocFile[]> {
   if (!files) return [];
   const result: UploadedDocFile[] = [];
   for (const file of Array.from(files)) {
