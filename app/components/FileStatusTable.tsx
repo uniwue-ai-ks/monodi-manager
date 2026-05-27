@@ -11,8 +11,8 @@ type Props = {
   documents?: DocumentEntry[];
   /** Plain filename list (CSV/generic mode: list IS the source of truth, no cross-ref). */
   filenames?: string[];
-  /** Called when the user clicks the remove button for a row. */
-  onRemove?: (filename: string) => void;
+  /** Called when the user clicks the remove button for a row. `onServer` is true/false when known, null while loading. */
+  onRemove?: (filename: string, onServer: boolean | null) => void;
   /** Header label override. Defaults to "Dateien". */
   label?: string;
 };
@@ -171,7 +171,7 @@ export const FileStatusTable = ({ documents, filenames: filenamesProp, onRemove,
                             <button
                               type="button"
                               aria-label={`${filename} entfernen`}
-                              onClick={() => onRemove(filename)}
+                              onClick={() => onRemove(filename, onServer)}
                               className="text-red-500 hover:text-red-700 p-1 rounded"
                             >
                               <HiTrash className="w-4 h-4" />

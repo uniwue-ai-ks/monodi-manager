@@ -113,7 +113,7 @@ export const ImportPage = ({ params }: Route.ComponentProps) => {
     }
   };
 
-  const handleCsvRemoveByName = useCallback(async (name: string) => {
+  const handleCsvRemoveByName = useCallback(async (name: string, _onServer: boolean | null) => {
     // Clear local parse state if the active CSV is being removed
     if (name === csvFilename) {
       setCsvFilename(null);
@@ -166,12 +166,13 @@ export const ImportPage = ({ params }: Route.ComponentProps) => {
     }
   };
 
-  const handleDocRemove = useCallback(async (filename: string) => {
+  const handleDocRemove = useCallback(async (filename: string, onServer: boolean | null) => {
     const updatedDoctypes = updateDoctype(doctypes, params.doctype, {
       documents: doctype.documents.filter((d) => d.filename !== filename),
     });
     storage.patchContents({ doctypes: updatedDoctypes });
-    if (!isStandalone) {
+    // Only attempt server delete when we know the file is actually there
+    if (!isStandalone && onServer === true) {
       try {
         await deleteServerFile(filename);
       } catch {
@@ -252,7 +253,7 @@ export const ImportPage = ({ params }: Route.ComponentProps) => {
           <div className="mt-2">
             <FileStatusTable
               filenames={csvFilenames}
-              onRemove={(name) => void handleCsvRemoveByName(name)}
+              onRemove={(name, onServer) => void handleCsvRemoveByName(name, onServer)}
               label="CSV-Dateien"
             />
           </div>
@@ -407,7 +408,7 @@ export const ImportPage = ({ params }: Route.ComponentProps) => {
         {/* File status overview */}
         <FileStatusTable
           documents={doctype.documents}
-          onRemove={(f) => void handleDocRemove(f)}
+          onRemove={(f, onServer) => void handleDocRemove(f, onServer)}
         />
       </div>
 
