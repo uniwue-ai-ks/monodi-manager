@@ -47,6 +47,50 @@ fs.mkdirSync(STATE_DIR, { recursive: true });
 const app = express();
 app.use(express.json({ limit: "50mb" }));
 
+const STATIC_ROUTE_SUFFIXES = ["/frontmatter", "/export"] as const;
+const DOCTYPE_STEP_SUFFIX = /^(.*)\/[^/]+\/(import|fields|data)$/;
+
+function normalizeBasePath(basePath: string): string {
+  if (!basePath || basePath === "/") {
+    return "/";
+  }
+
+  const withLeadingSlash = basePath.startsWith("/") ? basePath : `/${basePath}`;
+  const trimmed = withLeadingSlash.replace(/\/+$/, "");
+
+  return trimmed || "/";
+}
+
+function detectBasePath(pathname: string): string {
+  const normalizedPathname =
+    pathname === "/" ? "/" : pathname.replace(/\/+$/, "") || "/";
+
+  if (normalizedPathname === "/") {
+    return "/";
+  }
+
+  for (const suffix of STATIC_ROUTE_SUFFIXES) {
+    if (normalizedPathname === suffix) {
+      return "/";
+    }
+
+    if (normalizedPathname.endsWith(suffix)) {
+      return normalizeBasePath(normalizedPathname.slice(0, -suffix.length));
+    }
+  }
+
+  const doctypeStepMatch = normalizedPathname.match(DOCTYPE_STEP_SUFFIX);
+  if (doctypeStepMatch) {
+    const prefixWithDoctype = doctypeStepMatch[1];
+    const lastSlash = prefixWithDoctype.lastIndexOf("/");
+    return normalizeBasePath(prefixWithDoctype.slice(0, lastSlash));
+  }
+
+  return normalizedPathname.indexOf("/", 1) === -1
+    ? normalizeBasePath(normalizedPathname)
+    : "/";
+}
+
 // ---------------------------------------------------------------------------
 // Authentication – HTTP Basic Auth on every route
 // ---------------------------------------------------------------------------
@@ -222,11 +266,40 @@ app.post("/api/deploy", async (req: Request, res: Response) => {
 // The frontend build is at  <repo>/build/client
 // ---------------------------------------------------------------------------
 const CLIENT_DIR = path.resolve(__dirname, "../../build/client");
-app.use(express.static(CLIENT_DIR));
+const CLIENT_INDEX_PATH = path.join(CLIENT_DIR, "index.html");
+const CLIENT_INDEX_HTML = fs.readFileSync(CLIENT_INDEX_PATH, "utf-8");
+
+function renderClientIndex(pathname: string): string {
+  const basePath = detectBasePath(pathname);
+  const assetPrefix = basePath === "/" ? "" : basePath;
+
+  return CLIENT_INDEX_HTML
+    .replaceAll("./assets/", `${assetPrefix}/assets/`)
+    .replace('"basename":"/"', `"basename":${JSON.stringify(basePath)}`);
+}
+
+app.get(/^\/(?:.+\/)?assets\/(.+)$/, (req: Request, res: Response, next: NextFunction) => {
+  const assetPath = req.params[0];
+  const assetsDir = path.resolve(CLIENT_DIR, "assets");
+  const target = path.resolve(assetsDir, assetPath);
+
+  if (!target.startsWith(`${assetsDir}${path.sep}`)) {
+    res.status(400).send("Invalid asset path");
+    return;
+  }
+
+  res.sendFile(target, (err) => {
+    if (err) {
+      next();
+    }
+  });
+});
+
+app.use(express.static(CLIENT_DIR, { index: false }));
 
 // SPA fallback – any non-API, non-static path returns index.html
-app.get("*", (_req: Request, res: Response) => {
-  res.sendFile(path.join(CLIENT_DIR, "index.html"));
+app.get("*", (req: Request, res: Response) => {
+  res.type("html").send(renderClientIndex(req.path));
 });
 
 // ---------------------------------------------------------------------------

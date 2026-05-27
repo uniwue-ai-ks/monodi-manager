@@ -1,6 +1,8 @@
 // Build-time flag injected by Vite define (see vite.config.ts).
 // Set MONODI_STANDALONE=true at build time to produce a standalone SPA bundle
 // that does not communicate with the backend.
+import { withBasePath } from "~/utils/basePath";
+
 declare const __MONODI_STANDALONE__: boolean;
 export const isStandalone: boolean = __MONODI_STANDALONE__;
 
@@ -10,7 +12,7 @@ export const isStandalone: boolean = __MONODI_STANDALONE__;
 
 /** Send the generated TTL and full app state to the backend for persistence. */
 export async function deployToBackend(ttl: string, state: unknown): Promise<void> {
-  const res = await fetch("/api/deploy", {
+  const res = await fetch(withBasePath("/api/deploy"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ttl, state }),
@@ -27,7 +29,7 @@ export async function deployToBackend(ttl: string, state: unknown): Promise<void
 
 /** Fetch the list of CSV filenames stored on the server. */
 export async function getCsvFiles(): Promise<string[]> {
-  const res = await fetch("/api/csv");
+  const res = await fetch(withBasePath("/api/csv"));
   if (!res.ok) throw new Error(`Server returned ${res.status}: ${res.statusText}`);
   const data = (await res.json()) as { files: string[] };
   return data.files;
@@ -43,7 +45,7 @@ export function uploadCsvToBackend(
     for (const file of files) formData.append("files", file);
 
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/csv");
+    xhr.open("POST", withBasePath("/api/csv"));
     xhr.upload.addEventListener("progress", (e) => {
       if (e.lengthComputable) onProgress(e.loaded, e.total);
     });
@@ -63,13 +65,13 @@ export function uploadCsvToBackend(
 
 /** Delete a CSV file from the server. */
 export async function deleteCsvFile(filename: string): Promise<void> {
-  const res = await fetch(`/api/csv/${encodeURIComponent(filename)}`, { method: "DELETE" });
+  const res = await fetch(withBasePath(`/api/csv/${encodeURIComponent(filename)}`), { method: "DELETE" });
   if (!res.ok) throw new Error(`Server returned ${res.status}: ${res.statusText}`);
 }
 
 /** Delete a binary document file (PDF or image) from the server. */
 export async function deleteServerFile(filename: string): Promise<void> {
-  const res = await fetch(`/api/files/${encodeURIComponent(filename)}`, { method: "DELETE" });
+  const res = await fetch(withBasePath(`/api/files/${encodeURIComponent(filename)}`), { method: "DELETE" });
   if (!res.ok) throw new Error(`Server returned ${res.status}: ${res.statusText}`);
 }
 
@@ -79,7 +81,7 @@ export async function deleteServerFile(filename: string): Promise<void> {
 
 /** Fetch the list of filenames currently stored on the server. */
 export async function getServerFiles(): Promise<string[]> {
-  const res = await fetch("/api/files");
+  const res = await fetch(withBasePath("/api/files"));
   if (!res.ok) {
     throw new Error(`Server returned ${res.status}: ${res.statusText}`);
   }
@@ -106,7 +108,7 @@ export function uploadFilesToBackend(
     }
 
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/files");
+    xhr.open("POST", withBasePath("/api/files"));
 
     xhr.upload.addEventListener("progress", (e) => {
       if (e.lengthComputable) {
