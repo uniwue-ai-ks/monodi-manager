@@ -30,6 +30,8 @@ const RESOURCE_DIR = process.env.MONODI_RESOURCE_DIR!;
 const RDF_DIR = process.env.MONODI_RDF_DIR!;
 const STATE_DIR = process.env.MONODI_STATE_DIR ?? RDF_DIR;
 const PASSWORD = process.env.MONODI_MANAGE_PASSWORD!;
+// Optional: push RDF to a live Fuseki instance after deploy (no restart needed)
+const FUSEKI_URL = process.env.MONODI_FUSEKI_URL?.replace(/\/$/, "");
 
 // Ensure storage directories exist on startup
 const PDF_DIR = path.join(RESOURCE_DIR, "pdf");
@@ -167,7 +169,7 @@ app.post(
 // Body: { ttl: string, state: unknown }
 // Saves data.ttl and a timestamped state JSON into MONODI_RDF_DIR
 // ---------------------------------------------------------------------------
-app.post("/api/deploy", (req: Request, res: Response) => {
+app.post("/api/deploy", async (req: Request, res: Response) => {
   const { ttl, state } = req.body as { ttl?: string; state?: unknown };
 
   if (typeof ttl !== "string" || !state) {
@@ -188,6 +190,24 @@ app.post("/api/deploy", (req: Request, res: Response) => {
       JSON.stringify(state, null, 2),
       "utf-8",
     );
+
+    if (FUSEKI_URL) {
+      const fusekiRes = await fetch(
+        `${FUSEKI_URL}/tdb2-database/data?default`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "text/turtle" },
+          body: ttl,
+        },
+      );
+      if (!fusekiRes.ok) {
+        const body = await fusekiRes.text();
+        console.error(`Fuseki push failed (${fusekiRes.status}): ${body}`);
+        res.status(502).json({ error: "RDF written to disk but Fuseki push failed" });
+        return;
+      }
+      console.log("Fuseki default graph updated successfully");
+    }
 
     res.json({ success: true });
   } catch (err) {

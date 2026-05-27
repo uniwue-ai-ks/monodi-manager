@@ -1,0 +1,63 @@
+services:
+  fuseki:
+    image: monodi-fuseki:rw-latest
+    restart: always
+    volumes:
+      # mount the folder with your TTL files here
+      - ./tmp/rdf/:/data/:ro,z
+    networks:
+      - backend
+
+  manager:
+    image: monodi-manager:latest
+    restart: always
+    volumes:
+      # mount the folder where RDF files are written (should match the fuseki data volume)
+      - ./tmp/rdf/:/data/rdf/:z
+      # mount the folder for uploaded resource files (PDFs, docs, etc.)
+      - ./tmp/static:/data/resources/:z
+      # mount the folder for state JSON snapshots (defaults to RDF_DIR if unset)
+      # - ./tmp/state:/data/state/:z
+    environment:
+      # Directory where generated data.ttl is written (must match the fuseki container's data volume)
+      MONODI_RDF_DIR: /data/rdf
+      # Directory where uploaded resource files (PDFs, docs) are stored
+      MONODI_RESOURCE_DIR: /data/resources
+      # Directory for state JSON snapshots; defaults to MONODI_RDF_DIR if unset
+      # MONODI_STATE_DIR: /data/state
+      # Password for HTTP Basic Auth on all management endpoints
+      MONODI_MANAGE_PASSWORD: "changeme"
+      # Fuseki internal URL for live RDF push after deploy (no container restart needed)
+      MONODI_FUSEKI_URL: "http://fuseki:3030"
+    networks:
+      - backend
+
+  frontend:
+    image: monodi:latest
+    restart: always
+    ports:
+      # set your desired external port here
+      - "9900:80"
+    volumes:
+      # mount static files (images, pdfs, etc) here
+      - ./tmp/static:/srv/resources:ro,z
+      - caddy_data:/data:z
+      - caddy_config:/config:z
+    environment:
+      # Set the HTML title
+      HTML_TITLE: "My Monodi Viewer"
+      # add additional tags to the head, e.g. metadata, analytics scripts, etc.
+      HTML_HEAD_EXTRA: "<meta name=\"description\" content=\"Monodi is a document viewer\"/>"
+      # Set this when not hosting directly on a domain's root
+      # BASE_PATH: '/monodi'
+    networks:
+      - backend
+      - frontend
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  backend:
+  frontend:

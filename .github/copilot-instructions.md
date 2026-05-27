@@ -66,3 +66,4 @@ Notes for safety and speed
 If anything here is out of date
 - Re-run `pnpm install` and `pnpm run typecheck` to validate current state, then update this instruction file.  
 
+When commiting to git, use conventional commits prefixes like "feat:", "fix:" etc. Do not add a Co-Authored-By line.

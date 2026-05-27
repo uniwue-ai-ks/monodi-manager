@@ -1,4 +1,4 @@
-FROM node:20-slim AS base
+FROM node:22-slim AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
@@ -12,9 +12,12 @@ RUN pnpm run build
 
 # Build the backend
 FROM base AS backend-build
-WORKDIR /app/backend
+WORKDIR /app
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
-RUN pnpm run build
+RUN pnpm --filter @generator-monodi/backend run build
+# pnpm deploy copies production deps as real files (no symlinks into the pnpm store)
+RUN pnpm deploy --legacy --filter @generator-monodi/backend --prod /app/backend-deploy
+RUN cp -r /app/backend/dist /app/backend-deploy/dist
 
 # Runtime: Node.js serves both the backend API and the frontend static files
 FROM node:20-slim AS runtime
@@ -25,8 +28,7 @@ WORKDIR /app
 COPY --from=frontend-build /app/build/client /app/build/client
 
 # Copy compiled backend and its installed node_modules
-COPY --from=backend-build /app/backend/dist /app/backend/dist
-COPY --from=backend-build /app/backend/node_modules /app/backend/node_modules
+COPY --from=backend-build /app/backend-deploy /app/backend
 
 WORKDIR /app/backend
 EXPOSE 3000
