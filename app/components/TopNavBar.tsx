@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Button, Modal, ModalBody, ModalFooter, ModalHeader, TextInput, Tooltip } from "flowbite-react";
-import { HiPencil, HiPlus, HiCog, HiArrowUpTray } from "react-icons/hi2";
+import { HiPencil, HiPlus, HiCog, HiArrowUpTray, HiHome } from "react-icons/hi2";
 import { useAppState, slugify, addDoctype, renameDoctype } from "~/utils/flowStorage";
 
 export const TopNavBar = () => {
@@ -44,8 +44,17 @@ export const TopNavBar = () => {
     <>
       <nav className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
         <div className="max-w-screen-xl mx-auto px-4 py-2 flex items-center gap-2 flex-wrap">
-          {/* Doctype buttons */}
+          {/* Home link + Doctype buttons */}
           <div className="flex items-center gap-1 flex-1 flex-wrap">
+            <Tooltip content="Startseite" placement="bottom">
+              <Link
+                to="/"
+                className="px-2 py-1.5 rounded text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors border border-transparent"
+                aria-label="Startseite"
+              >
+                <HiHome className="w-4 h-4" />
+              </Link>
+            </Tooltip>
             {doctypes.map((dt) => {
               const slug = slugify(dt.name);
               return (

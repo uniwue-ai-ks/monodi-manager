@@ -76,6 +76,25 @@ export async function deleteServerFile(filename: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Snapshots – GET /api/snapshots, GET /api/snapshots/:filename
+// ---------------------------------------------------------------------------
+
+/** Fetch the list of available state snapshot filenames from the server. */
+export async function getSnapshots(): Promise<string[]> {
+  const res = await fetch(withBasePath("/api/snapshots"));
+  if (!res.ok) throw new Error(`Server returned ${res.status}: ${res.statusText}`);
+  const data = (await res.json()) as { snapshots: string[] };
+  return data.snapshots;
+}
+
+/** Fetch and return the parsed JSON content of a specific state snapshot. */
+export async function loadSnapshot(filename: string): Promise<unknown> {
+  const res = await fetch(withBasePath(`/api/snapshots/${encodeURIComponent(filename)}`));
+  if (!res.ok) throw new Error(`Server returned ${res.status}: ${res.statusText}`);
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
 // File listing – GET /api/files
 // ---------------------------------------------------------------------------
 

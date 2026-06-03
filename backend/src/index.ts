@@ -165,6 +165,33 @@ app.post(
 );
 
 // ---------------------------------------------------------------------------
+// Snapshots – GET /api/snapshots · GET /api/snapshots/:filename
+// Lists and serves state_*.json files from STATE_DIR
+// ---------------------------------------------------------------------------
+app.get("/api/snapshots", (_req: Request, res: Response) => {
+  const files = fs
+    .readdirSync(STATE_DIR)
+    .filter((f) => /^state_.*\.json$/.test(f))
+    .sort()
+    .reverse();
+  res.json({ snapshots: files });
+});
+
+app.get("/api/snapshots/:filename", (req: Request, res: Response) => {
+  const filename = path.basename(req.params.filename);
+  if (!/^state_.*\.json$/.test(filename)) {
+    res.status(400).json({ error: "Invalid snapshot filename" });
+    return;
+  }
+  const target = path.join(STATE_DIR, filename);
+  if (!fs.existsSync(target)) {
+    res.status(404).json({ error: "Snapshot not found" });
+    return;
+  }
+  res.type("application/json").sendFile(target);
+});
+
+// ---------------------------------------------------------------------------
 // Deploy – POST /api/deploy
 // Body: { ttl: string, state: unknown }
 // Saves data.ttl and a timestamped state JSON into MONODI_RDF_DIR
