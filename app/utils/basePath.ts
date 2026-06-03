@@ -1,5 +1,6 @@
 const STATIC_ROUTE_SUFFIXES = ["/frontmatter", "/export"] as const;
 const DOCTYPE_STEP_SUFFIX = /^(.*)\/[^/]+\/(import|fields|data)$/;
+const ADMIN_ROOT_SUFFIX = /\/admin$/;
 
 function normalizeBasePath(basePath: string): string {
   if (!basePath || basePath === "/") {
@@ -32,9 +33,11 @@ export function detectBasePath(pathname = window.location.pathname): string {
 
   const doctypeStepMatch = normalizedPathname.match(DOCTYPE_STEP_SUFFIX);
   if (doctypeStepMatch) {
-    const prefixWithDoctype = doctypeStepMatch[1];
-    const lastSlash = prefixWithDoctype.lastIndexOf("/");
-    return normalizeBasePath(prefixWithDoctype.slice(0, lastSlash));
+    return normalizeBasePath(doctypeStepMatch[1]);
+  }
+
+  if (ADMIN_ROOT_SUFFIX.test(normalizedPathname)) {
+    return normalizeBasePath(normalizedPathname);
   }
 
   return normalizedPathname.indexOf("/", 1) === -1

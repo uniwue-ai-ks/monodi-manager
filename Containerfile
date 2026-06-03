@@ -7,6 +7,10 @@ WORKDIR /app
 
 # Build the React frontend
 FROM base AS frontend-build
+ARG MONODI_BASE_PATH=
+ARG MONODI_BUILD_PROFILE=production
+ENV MONODI_BASE_PATH=$MONODI_BASE_PATH
+ENV MONODI_BUILD_PROFILE=$MONODI_BUILD_PROFILE
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 RUN pnpm run build
 

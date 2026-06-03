@@ -47,50 +47,6 @@ fs.mkdirSync(STATE_DIR, { recursive: true });
 const app = express();
 app.use(express.json({ limit: "50mb" }));
 
-const STATIC_ROUTE_SUFFIXES = ["/frontmatter", "/export"] as const;
-const DOCTYPE_STEP_SUFFIX = /^(.*)\/[^/]+\/(import|fields|data)$/;
-
-function normalizeBasePath(basePath: string): string {
-  if (!basePath || basePath === "/") {
-    return "/";
-  }
-
-  const withLeadingSlash = basePath.startsWith("/") ? basePath : `/${basePath}`;
-  const trimmed = withLeadingSlash.replace(/\/+$/, "");
-
-  return trimmed || "/";
-}
-
-function detectBasePath(pathname: string): string {
-  const normalizedPathname =
-    pathname === "/" ? "/" : pathname.replace(/\/+$/, "") || "/";
-
-  if (normalizedPathname === "/") {
-    return "/";
-  }
-
-  for (const suffix of STATIC_ROUTE_SUFFIXES) {
-    if (normalizedPathname === suffix) {
-      return "/";
-    }
-
-    if (normalizedPathname.endsWith(suffix)) {
-      return normalizeBasePath(normalizedPathname.slice(0, -suffix.length));
-    }
-  }
-
-  const doctypeStepMatch = normalizedPathname.match(DOCTYPE_STEP_SUFFIX);
-  if (doctypeStepMatch) {
-    const prefixWithDoctype = doctypeStepMatch[1];
-    const lastSlash = prefixWithDoctype.lastIndexOf("/");
-    return normalizeBasePath(prefixWithDoctype.slice(0, lastSlash));
-  }
-
-  return normalizedPathname.indexOf("/", 1) === -1
-    ? normalizeBasePath(normalizedPathname)
-    : "/";
-}
-
 // ---------------------------------------------------------------------------
 // Authentication – HTTP Basic Auth on every route
 // ---------------------------------------------------------------------------
@@ -268,15 +224,62 @@ app.post("/api/deploy", async (req: Request, res: Response) => {
 const CLIENT_DIR = path.resolve(__dirname, "../../build/client");
 const CLIENT_INDEX_PATH = path.join(CLIENT_DIR, "index.html");
 const CLIENT_INDEX_HTML = fs.readFileSync(CLIENT_INDEX_PATH, "utf-8");
+const MANIFEST_ASSET_PATTERN = /^\/(?:.+\/)?assets\/(manifest-[^/]+\.js)$/;
 
-function renderClientIndex(pathname: string): string {
-  const basePath = detectBasePath(pathname);
-  const assetPrefix = basePath === "/" ? "" : basePath;
+function normalizeBasePath(basePath: string): string {
+  if (!basePath || basePath === "/") {
+    return "/";
+  }
+
+  const withLeadingSlash = basePath.startsWith("/") ? basePath : `/${basePath}`;
+  const trimmed = withLeadingSlash.replace(/\/+$/, "");
+
+  return trimmed || "/";
+}
+
+function detectAdminBasePath(pathname: string): string {
+  const match = pathname.match(/^(.*\/admin)(?:\/.*)?\/assets\/manifest-[^/]+\.js$/);
+  return normalizeBasePath(match?.[1] ?? "/");
+}
+
+function detectHtmlBasePath(pathname: string): string {
+  const normalizedPathname = pathname === "/" ? "/" : pathname.replace(/\/+$/, "") || "/";
+  const match = normalizedPathname.match(/^(.*\/admin)(?:\/.*)?$/);
+  return normalizeBasePath(match?.[1] ?? "/");
+}
+
+function getForwardedAdminBasePath(req: Request): string | null {
+  const forwardedPrefix = req.header("X-Forwarded-Prefix");
+  if (!forwardedPrefix) {
+    return null;
+  }
+
+  return normalizeBasePath(`${forwardedPrefix}/admin`);
+}
+
+function renderRuntimeManifest(req: Request, manifestSource: string): string {
+  const adminBasePath = getForwardedAdminBasePath(req) ?? detectAdminBasePath(req.path);
+  const assetPrefix = adminBasePath === "/" ? "/assets/" : `${adminBasePath}/assets/`;
+
+  return manifestSource.replaceAll("./assets/", assetPrefix);
+}
+
+function renderRuntimeIndex(req: Request): string {
+  const adminBasePath = getForwardedAdminBasePath(req) ?? detectHtmlBasePath(req.path);
+  const assetPrefix = adminBasePath === "/" ? "./assets/" : `${adminBasePath}/assets/`;
 
   return CLIENT_INDEX_HTML
-    .replaceAll("./assets/", `${assetPrefix}/assets/`)
-    .replace('"basename":"/"', `"basename":${JSON.stringify(basePath)}`);
+    .replaceAll("./assets/", assetPrefix)
+    .replace('"basename":"/"', `"basename":${JSON.stringify(adminBasePath)}`);
 }
+
+app.get(MANIFEST_ASSET_PATTERN, (req: Request, res: Response) => {
+  const manifestFilename = req.params[0];
+  const manifestPath = path.join(CLIENT_DIR, "assets", manifestFilename);
+  const manifestSource = fs.readFileSync(manifestPath, "utf-8");
+
+  res.type("application/javascript").send(renderRuntimeManifest(req, manifestSource));
+});
 
 app.get(/^\/(?:.+\/)?assets\/(.+)$/, (req: Request, res: Response, next: NextFunction) => {
   const assetPath = req.params[0];
@@ -299,7 +302,7 @@ app.use(express.static(CLIENT_DIR, { index: false }));
 
 // SPA fallback – any non-API, non-static path returns index.html
 app.get("*", (req: Request, res: Response) => {
-  res.type("html").send(renderClientIndex(req.path));
+  res.type("html").send(renderRuntimeIndex(req));
 });
 
 // ---------------------------------------------------------------------------
