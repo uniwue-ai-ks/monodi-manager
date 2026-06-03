@@ -32,7 +32,7 @@ services:
       MONODI_MANAGE_PASSWORD: "changeme"
       # Fuseki internal URL for live RDF push after deploy (no container restart needed)
       MONODI_FUSEKI_URL: "http://fuseki:3030"
-      BASE_PATH: '/monodi'
+      # BASE_PATH: '/monodi'
     networks:
       - backend
 
@@ -53,7 +53,7 @@ services:
       # add additional tags to the head, e.g. metadata, analytics scripts, etc.
       HTML_HEAD_EXTRA: "<meta name=\"description\" content=\"Monodi is a document viewer\"/>"
       # Set this when not hosting directly on a domain's root
-      BASE_PATH: '/monodi'
+      # BASE_PATH: '/monodi'
     networks:
       - backend
       - frontend
